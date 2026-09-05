@@ -1,0 +1,15 @@
+# LiveKit server config. Keys must match LIVEKIT_API_KEY / LIVEKIT_API_SECRET.
+port: 7880
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50200
+  # Set to the server's public IP when running on a VPS so clients can reach it.
+  use_external_ip: true
+keys:
+  devkey: devsecret-devsecret-devsecret-devsecret
+room:
+  auto_create: true
+  empty_timeout: 300
+logging:
+  level: info

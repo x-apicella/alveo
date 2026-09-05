@@ -1,0 +1,8 @@
+# Replace the hostnames with yours. Caddy provisions TLS automatically.
+alveo.example.com {
+	reverse_proxy localhost:3000
+}
+
+livekit.example.com {
+	reverse_proxy localhost:7880
+}
