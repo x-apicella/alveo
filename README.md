@@ -42,7 +42,9 @@ cp .env.example .env
 # Set real values: SESSION_SECRET, POSTGRES_PASSWORD, LIVEKIT_API_KEY/SECRET,
 # NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.example.com, DND_AUTH_SHARED_SECRET,
 # DND_APP_LOGIN_URL, and ALLOW_DEV_LOGIN=false.
-# Edit livekit.yaml `keys:` to match, and the hostnames in Caddyfile.
+# Create a private production config; set its keys to match .env.
+cp livekit.yaml livekit.prod.yaml
+# Edit livekit.prod.yaml `keys:` and the hostnames in Caddyfile.
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
@@ -100,3 +102,33 @@ drizzle/           generated SQL migrations (pnpm db:generate)
 docker-compose.yml        local Postgres + LiveKit
 docker-compose.prod.yml   full stack for a VPS
 ```
+
+## First deployment acceptance
+
+Production login requires the D&D app to actually issue the SSO tokens described
+above. Setting a login URL alone does not implement that integration. Confirm a
+valid sign-in round trip before inviting the group; development login is always
+disabled in a production build.
+
+Before starting production, replace all example secrets with distinct random
+values (for example, `openssl rand -hex 32`). Use a URL-safe Postgres password
+because Compose embeds it in the database URL. Keep `livekit.prod.yaml` private;
+it is ignored by Git. The checked-in `livekit.yaml` is for local development.
+
+Run `docker compose -f docker-compose.prod.yml config --quiet`, then start the
+stack and inspect `docker compose -f docker-compose.prod.yml logs app livekit`.
+The app waits for Postgres readiness before applying migrations at startup.
+
+With two separate browser profiles or devices:
+
+1. Sign in, create a server, and join it using an invite in the second profile.
+2. Send messages in both directions and reload to confirm persistence.
+3. Join the same voice channel and confirm microphone and camera in both directions.
+4. Publish two separate sources from one participant; confirm both appear remotely.
+5. Stop one source using the browser picker and confirm the other keeps playing.
+6. Leave and rejoin; confirm capture stops and no duplicate audio remains.
+7. Restart the stack and confirm users, membership, and messages survive.
+
+Test media from outside the VPS network. HTTPS success alone does not prove the
+media firewall ports are reachable. Record browser/OS and whether the picker
+actually offers audio for the selected source; capture support varies.
