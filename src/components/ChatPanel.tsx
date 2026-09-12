@@ -15,6 +15,10 @@ export function ChatPanel({
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [connected, setConnected] = useState(false);
+  const sendingRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // The page keys this component by channel id, so state resets on navigation.
@@ -26,6 +30,8 @@ export function ChatPanel({
       initialCursor ? `?after=${encodeURIComponent(initialCursor)}` : ""
     }`;
     const es = new EventSource(url);
+    es.onopen = () => setConnected(true);
+    es.onerror = () => setConnected(false);
     es.onmessage = (ev) => {
       const { messages: incoming } = JSON.parse(ev.data) as { messages: MessageView[] };
       setMessages((prev) => {
@@ -43,18 +49,35 @@ export function ChatPanel({
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const content = draft.trim();
-    if (!content) return;
-    setDraft("");
-    await fetch(`/api/channels/${channel.id}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
-    });
+    if (!content || sendingRef.current) return;
+    sendingRef.current = true;
+    setSending(true);
+    setSendError(null);
+    try {
+      const response = await fetch(`/api/channels/${channel.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      if (!response.ok) {
+        setSendError(response.status === 401
+          ? "Your session expired. Copy your draft before signing in again."
+          : "Could not confirm delivery. Your draft is saved here; check the chat before retrying.");
+        return;
+      }
+      setDraft("");
+    } catch {
+      setSendError("Connection lost. Delivery is uncertain; check the chat before retrying. Your draft is saved here.");
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
   }
 
   return (
     <>
       <header className="border-b border-black/30 px-4 py-3 font-semibold"># {channel.name}</header>
+      {!connected && <p role="status" className="px-4 py-2 text-sm opacity-70">Connecting to live chat… New messages may be delayed.</p>}
       <div className="flex-1 overflow-y-auto px-4 py-3">
         {messages.length === 0 && (
           <p className="opacity-50 text-sm">Nothing here yet. Say hello.</p>
@@ -77,13 +100,22 @@ export function ChatPanel({
         <div ref={bottomRef} />
       </div>
       <form onSubmit={send} className="p-3">
+        {sendError && <p role="alert" id="send-error" className="mb-2 text-sm text-red-400">{sendError}</p>}
+        <div className="flex gap-2">
         <input
           className="w-full rounded-lg bg-panel px-4 py-3 outline-none focus:ring-1 focus:ring-accent"
           placeholder={`Message #${channel.name}`}
           value={draft}
+          aria-label={`Message #${channel.name}`}
+          aria-describedby={sendError ? "send-error" : undefined}
+          readOnly={sending}
           onChange={(e) => setDraft(e.target.value)}
           maxLength={4000}
         />
+        <button type="submit" disabled={sending || !draft.trim()} className="rounded-lg bg-accent px-4 disabled:opacity-50">
+          {sending ? "Sending…" : "Send"}
+        </button>
+        </div>
       </form>
     </>
   );
