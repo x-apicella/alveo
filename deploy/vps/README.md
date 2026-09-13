@@ -115,7 +115,7 @@ Now run **on the VPS**:
 sudo tar --no-same-owner -xf ~/alveo-release.tar -C /opt/alveo
 rm ~/alveo-release.tar
 sudo chmod 700 /opt/alveo/.deploy
-sudo chmod 600 /opt/alveo/.deploy/*
+sudo chmod 600 /opt/alveo/.deploy/app.env /opt/alveo/.deploy/livekit.json /opt/alveo/.deploy/caddy.json
 cd /opt/alveo
 sudo docker compose -f deploy/vps/compose.yaml config --quiet
 sudo docker compose -f deploy/vps/compose.yaml pull
