@@ -1,0 +1,55 @@
+name: alveo
+x-runtime: &runtime
+  restart: unless-stopped
+  network_mode: host
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: '3'
+services:
+  app:
+    <<: *runtime
+    build:
+      context: ../..
+      args:
+        NEXT_PUBLIC_LIVEKIT_URL: wss://livekit.alveo.chat
+    env_file:
+      - path: ../../.deploy/app.env
+        format: raw
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 127.0.0.1
+      PORT: '3000'
+      ALLOW_DEV_LOGIN: 'false'
+    stop_grace_period: 30s
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+  redis:
+    <<: *runtime
+    image: redis:7.4-alpine
+    command: [redis-server, --bind, 127.0.0.1, --protected-mode, 'yes', --appendonly, 'yes']
+    volumes:
+      - redis_data:/data
+  livekit:
+    <<: *runtime
+    image: livekit/livekit-server:v1.13.6
+    command: [--config, /etc/livekit.json]
+    depends_on: [redis]
+    stop_grace_period: 5m
+    volumes:
+      - ../../.deploy/livekit.json:/etc/livekit.json:ro
+  caddy:
+    <<: *runtime
+    image: livekit/caddyl4:v2.11.3
+    command: [run, --config, /etc/caddy.json]
+    volumes:
+      - ../../.deploy/caddy.json:/etc/caddy.json:ro
+      - caddy_data:/data
+volumes:
+  redis_data:
+  caddy_data:

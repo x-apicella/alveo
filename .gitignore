@@ -47,3 +47,6 @@ livekit.prod.yaml
 # Browser test artifacts
 /test-results/
 /playwright-report/
+
+# Private VPS deployment bundle
+/.deploy/

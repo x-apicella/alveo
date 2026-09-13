@@ -37,6 +37,39 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm test
+      - name: Validate VPS proxy, Compose, and media server startup
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { mkdirSync, writeFileSync } from 'node:fs';
+          import { configs } from './scripts/prepare-vps.mjs';
+          const {app, livekit, caddy} = configs({
+            ALVEO_DATABASE_URL: process.env.ALVEO_DATABASE_URL,
+            ALVEO_DATABASE_DIRECT_URL: process.env.ALVEO_DATABASE_URL,
+            NEON_AUTH_URL: 'https://auth.example.invalid/auth',
+          });
+          // CI validates routing without requesting real certificates or public ICE candidates.
+          caddy.apps.tls.certificates.automate = [];
+          livekit.rtc.use_external_ip = false;
+          mkdirSync('.deploy', {recursive:true, mode:0o700});
+          writeFileSync('.deploy/app.env', Object.entries(app).map(([k,v])=>`${k}=${v}`).join('\n'), {mode:0o600});
+          writeFileSync('.deploy/livekit.json', JSON.stringify(livekit), {mode:0o600});
+          writeFileSync('.deploy/caddy.json', JSON.stringify(caddy), {mode:0o600});
+          NODE
+          docker compose -f deploy/vps/compose.yaml config --quiet
+          docker compose -f deploy/vps/compose.yaml run --rm --no-deps caddy validate --config /etc/caddy.json
+          trap 'docker compose -f deploy/vps/compose.yaml stop livekit redis' EXIT
+          docker compose -f deploy/vps/compose.yaml up -d redis livekit
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:7880/ >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = true
       - run: pnpm build
       - run: pnpm typecheck
       - name: Build deployable image
