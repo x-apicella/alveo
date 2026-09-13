@@ -2,11 +2,12 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { isDevLoginAllowed } from "@/lib/env";
 import { DevLoginForm } from "@/components/DevLoginForm";
+import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { NeonLoginForm } from "@/components/NeonLoginForm";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if (await getCurrentUser()) redirect("/");
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
   const dndUrl = process.env.DND_APP_LOGIN_URL;
 
   return (
@@ -16,7 +17,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <p className="opacity-60 text-sm">Sign in to join your table.</p>
       </div>
       {error && <p className="text-red-400 text-sm">Sign-in failed. Please try again.</p>}
-      {process.env.NEON_AUTH_URL && <NeonLoginForm />}
+      {process.env.NEON_AUTH_URL && (
+        <>
+          <GoogleLoginButton next={typeof next === "string" ? next : "/"} />
+          <NeonLoginForm />
+        </>
+      )}
       {dndUrl && (
         <a href={dndUrl} className="rounded-md bg-accent px-4 py-2 text-center font-medium">
           Continue with your D&amp;D account

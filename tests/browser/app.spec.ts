@@ -41,7 +41,7 @@ test('signed-in browser can navigate channels and join local voice', async ({ pa
       }, { timeout: 20_000 }).toBe(true);
     }
   } finally {
-    await page.goto('/login');
+    await page.goto('/login').catch(() => {});
     if (media && roomId) await media.deleteRoom(roomId).catch(() => {});
     if (serverId) await sql`DELETE FROM servers WHERE id = ${serverId} AND name = ${subject}`;
     await sql`DELETE FROM users WHERE external_id = ${subject}`;
@@ -57,4 +57,24 @@ test('Neon email form is available and rejects invalid credentials', async ({ pa
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'Could not sign in' })).toBeVisible();
   await expect(page).toHaveURL(/\/login$/);
+});
+
+
+test('Google login preserves safe invitations and shows provider errors', async ({ page }) => {
+  test.skip(!process.env.NEON_AUTH_URL, 'Neon provider is not configured');
+  const callbacks: string[] = [];
+  await page.route('**/api/auth/sign-in/social', async route => {
+    const body = route.request().postDataJSON();
+    expect(body.provider).toBe('google');
+    callbacks.push(body.callbackURL);
+    await route.fulfill({status:400, contentType:'application/json', body:JSON.stringify({code:'PROVIDER_NOT_FOUND', message:'Unavailable'})});
+  });
+  for (const destination of ['/invite/test-code', '//outside.example/path']) {
+    await page.goto(`/login?next=${encodeURIComponent(destination)}`);
+    await page.getByRole('button', {name:'Continue with Google'}).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'Could not start Google' })).toHaveText('Could not start Google sign-in. Please try again or use email.');
+    await expect(page.getByRole('button', {name:'Continue with Google'})).toBeEnabled();
+  }
+  const origin = new URL(page.url()).origin;
+  expect(callbacks).toEqual([`${origin}/invite/test-code`, `${origin}/`]);
 });
