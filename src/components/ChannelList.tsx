@@ -83,6 +83,7 @@ export function ChannelList({ server, channels }: { server: Server; channels: Ch
       >
         {copied ? "Copied!" : "Copy invite link"}
       </button>
+      <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="my-3 px-2 text-xs underline opacity-70">Privacy policy</Link>
     </div>
   );
 }

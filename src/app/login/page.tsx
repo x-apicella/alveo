@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { isDevLoginAllowed } from "@/lib/env";
@@ -34,6 +35,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           No sign-in method is configured. Set DND_APP_LOGIN_URL or ALLOW_DEV_LOGIN.
         </p>
       )}
+      <Link href="/privacy" className="text-center text-sm underline opacity-70">Privacy policy</Link>
     </main>
   );
 }
