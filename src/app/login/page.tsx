@@ -1,3 +1,4 @@
+import { Brand } from "@/components/Brand";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
@@ -12,10 +13,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const dndUrl = process.env.DND_APP_LOGIN_URL;
 
   return (
-    <main className="m-auto w-full max-w-sm p-8 flex flex-col gap-6">
+    <main className="login-screen honeycomb"><div className="login-card">
       <div>
-        <h1 className="text-2xl font-semibold">Alveo</h1>
-        <p className="opacity-60 text-sm">Sign in to join your table.</p>
+        <Brand /><h1 className="mt-6 text-2xl font-semibold tracking-tight">Join the Hive</h1>
       </div>
       {error && <p className="text-red-400 text-sm">Sign-in failed. Please try again.</p>}
       {process.env.NEON_AUTH_URL && (
@@ -36,6 +36,6 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </p>
       )}
       <Link href="/privacy" className="text-center text-sm underline opacity-70">Privacy policy</Link>
-    </main>
+    </div></main>
   );
 }

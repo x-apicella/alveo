@@ -78,14 +78,14 @@ export function ChatPanel({
 
   return (
     <>
-      <header className="border-b border-black/30 px-4 py-3 font-semibold"># {channel.name}</header>
+      <header className="channel-heading"><span className="channel-symbol" aria-hidden="true">#</span><span className="truncate">{channel.name}</span><span className="ml-auto text-xs font-normal text-gray-400">Text channel</span></header>
       {!connected && <p role="status" className="px-4 py-2 text-sm opacity-70">Connecting to live chat… New messages may be delayed.</p>}
-      <div className="flex-1 overflow-y-auto px-4 py-3">
+      <div className="chat-body">
         {messages.length === 0 && (
-          <p className="opacity-50 text-sm">Nothing here yet. Say hello.</p>
+          <div className="chat-welcome honeycomb"><span className="welcome-hash" aria-hidden="true">#</span><h2>Welcome to #{channel.name}</h2><p>This is the start of your conversation. Say hello to the hive.</p></div>
         )}
         {messages.map((m) => (
-          <div key={m.id} className="py-1">
+          <div key={m.id} className="message-row"><span className="avatar" aria-hidden="true">{m.author.username.slice(0, 2).toUpperCase()}</span><div className="message-content">
             <span
               className={`mr-2 text-sm font-semibold ${
                 m.author.id === currentUserId ? "text-accent" : ""
@@ -96,12 +96,12 @@ export function ChatPanel({
             <span className="text-xs opacity-40">
               {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
-            <div className="whitespace-pre-wrap break-words">{m.content}</div>
+            <div className="whitespace-pre-wrap break-words">{m.content}</div></div>
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
-      <form onSubmit={send} className="p-3">
+      <form onSubmit={send} className="composer">
         {sendError && <p role="alert" id="send-error" className="mb-2 text-sm text-red-400">{sendError}</p>}
         <div className="flex gap-2">
         <input

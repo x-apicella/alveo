@@ -106,5 +106,5 @@ function Stage() {
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
-  return <div className="grid flex-1 place-items-center p-8 text-center opacity-80">{children}</div>;
+  return <div className="voice-lobby grid flex-1 place-items-center p-8 text-center">{children}</div>;
 }

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ServerRail } from "@/components/ServerRail";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getMemberServer, listChannels, listServersForUser } from "@/lib/data";
@@ -15,30 +15,13 @@ export default async function ServerLayout({ children, params }: LayoutProps<"/s
   ]);
 
   return (
-    <div className="flex h-full min-h-0">
-      <nav className="flex w-16 flex-col items-center gap-2 bg-black/30 py-3">
-        <Link href="/" title="Home" className="grid h-12 w-12 place-items-center rounded-2xl bg-panel text-lg">
-          A
-        </Link>
-        {servers.map((s) => (
-          <Link
-            key={s.id}
-            href={`/s/${s.id}`}
-            title={s.name}
-            className={`grid h-12 w-12 place-items-center rounded-2xl text-sm font-semibold ${
-              s.id === server.id ? "bg-accent" : "bg-panel hover:bg-panel-2"
-            }`}
-          >
-            {s.name.slice(0, 2).toUpperCase()}
-          </Link>
-        ))}
-      </nav>
-      <aside className="flex w-60 flex-col bg-panel">
-        <div className="border-b border-black/30 px-4 py-3 font-semibold">{server.name}</div>
+    <div className="app-shell">
+      <ServerRail servers={servers} activeId={server.id} />
+      <aside className="channel-sidebar">
+        <div className="server-heading"><span className="truncate">{server.name}</span><span aria-hidden="true" className="text-accent">⌄</span></div>
+        <div className="server-banner honeycomb"><span className="eyebrow">Join the Hive</span></div>
         <ChannelList server={server} channels={channels} />
-        <div className="mt-auto border-t border-black/30 px-4 py-3 text-sm opacity-70">
-          {user.username}
-        </div>
+        <div className="user-panel"><span className="avatar">{user.username.slice(0, 2).toUpperCase()}</span><div className="min-w-0"><div className="user-name">{user.username}</div><div className="user-caption">Your personal space</div></div></div>
       </aside>
       <section className="flex min-w-0 flex-1 flex-col">{children}</section>
     </div>
