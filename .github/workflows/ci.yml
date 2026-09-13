@@ -41,6 +41,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          bash -n deploy/vps/bootstrap.sh scripts/package-vps.sh
           node --input-type=module <<'NODE'
           import { mkdirSync, writeFileSync } from 'node:fs';
           import { configs } from './scripts/prepare-vps.mjs';

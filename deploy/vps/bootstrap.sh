@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# Run ONLY on a new, dedicated Ubuntu 24.04 VPS, as root.
+# Run ONLY on a new, dedicated Ubuntu 24.04 or 26.04 VPS, as root.
 set -euo pipefail
 [[ $EUID -eq 0 ]] || { echo 'Run with sudo.' >&2; exit 1; }
 source /etc/os-release
-[[ $ID == ubuntu && $VERSION_ID == 24.04 ]] || { echo 'Ubuntu 24.04 is required.' >&2; exit 1; }
+[[ $ID == ubuntu ]] || { echo 'Ubuntu is required.' >&2; exit 1; }
+case "$VERSION_ID" in
+  24.04) docker_suite=noble ;;
+  26.04) docker_suite=resolute ;;
+  *) echo 'Ubuntu 24.04 or 26.04 LTS is required.' >&2; exit 1 ;;
+esac
 command -v docker >/dev/null && { echo 'Docker already installed; refusing fresh-server bootstrap.' >&2; exit 1; }
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
@@ -14,7 +19,7 @@ chmod a+r /etc/apt/keyrings/docker.asc
 cat > /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
 URIs: https://download.docker.com/linux/ubuntu
-Suites: noble
+Suites: $docker_suite
 Components: stable
 Architectures: $(dpkg --print-architecture)
 Signed-By: /etc/apt/keyrings/docker.asc

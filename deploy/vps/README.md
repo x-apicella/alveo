@@ -14,7 +14,7 @@ Neon Auth remain hosted separately. No LiveKit Cloud subscription is needed.
 3. Select the standard **US East / Vint Hill, Virginia** region if available.
    If unavailable, compare another nearby standard region before ordering; do not
    silently choose a different plan or Local Zone with different specifications.
-4. Select **Ubuntu 24.04 LTS**, plain OS. No cPanel/Plesk/Windows license is needed.
+4. Select **Ubuntu 26.04 LTS** (24.04 LTS also works), plain OS. No cPanel/Plesk/Windows license is needed.
 5. Select monthly/no long-term commitment for the initial load test. Keep the
    included backup; extra paid options are optional.
 6. Import an SSH public key if checkout offers it. On the local WSL terminal:
@@ -124,7 +124,7 @@ sudo docker compose -f deploy/vps/compose.yaml ps
 
 Docker Compose 2.30+ is required for raw env files. The bootstrap installs current
 Docker packages from Docker's official Ubuntu repository. It only accepts Ubuntu
-24.04 and refuses to run if Docker is already installed. This stack uses Linux host
+24.04 or 26.04 and refuses to run if Docker is already installed. This stack uses Linux host
 networking so UFW protects the listeners, without Docker-published-port bypasses.
 Do not also launch the older root-level Compose stacks: they compete for ports.
 
