@@ -1,5 +1,6 @@
 import postgres from "postgres";
 import { requireEnv } from "./env";
+import { directDatabaseUrl } from "./database-url";
 
 /**
  * Lightweight pub/sub over Postgres LISTEN/NOTIFY. Every message insert
@@ -29,7 +30,7 @@ function getHub(): Hub {
   if (g.alveoHub) return g.alveoHub;
   const url = requireEnv("ALVEO_DATABASE_URL");
   // A dedicated connection for LISTEN, separate from the query pool.
-  const listenerConn = postgres(url, { max: 1 });
+  const listenerConn = postgres(directDatabaseUrl(), { max: 1 });
   const publisher = postgres(url, { max: 2 });
   const listeners = new Set<Listener>();
   const ready = listenerConn

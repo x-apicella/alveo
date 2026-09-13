@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocalParticipant } from "@livekit/components-react";
 import { Track, type LocalTrackPublication } from "livekit-client";
+import { createShareLifecycle } from "@/lib/share-lifecycle";
 
 type ShareMode = "video+audio" | "video" | "audio";
 
@@ -10,8 +11,7 @@ interface Source {
   id: string;
   label: string;
   mode: ShareMode;
-  publications: LocalTrackPublication[];
-  stream: MediaStream;
+  lifecycle: ReturnType<typeof createShareLifecycle<LocalTrackPublication>>;
 }
 
 /**
@@ -25,19 +25,35 @@ export function SourcePanel() {
   const [sources, setSources] = useState<Source[]>([]);
   const [error, setError] = useState<string | null>(null);
   const counter = useRef(0);
+  const active = useRef(new Map<string, Source>());
+  const lifetime = useRef({ mounted: true });
+  const busy = useRef(false);
+  const [adding, setAdding] = useState(false);
 
   const stopSource = useCallback(
     async (source: Source) => {
-      for (const pub of source.publications) {
-        if (pub.track) await localParticipant.unpublishTrack(pub.track, true);
-      }
-      source.stream.getTracks().forEach((t) => t.stop());
-      setSources((prev) => prev.filter((s) => s.id !== source.id));
+      active.current.delete(source.id);
+      const closing = source.lifecycle.close();
+      if (lifetime.current.mounted) setSources((prev) => prev.filter((s) => s.id !== source.id));
+      await closing;
     },
-    [localParticipant],
+    [],
   );
 
   async function addSource(mode: ShareMode) {
+    if (busy.current) return;
+    busy.current = true;
+    setAdding(true);
+    const currentLifetime = lifetime.current;
+    try {
+      await captureSource(mode, currentLifetime);
+    } finally {
+      busy.current = false;
+      if (currentLifetime.mounted) setAdding(false);
+    }
+  }
+
+  async function captureSource(mode: ShareMode, currentLifetime: { mounted: boolean }) {
     setError(null);
     let stream: MediaStream;
     try {
@@ -55,7 +71,12 @@ export function SourcePanel() {
       });
     } catch (e) {
       // User cancelled the picker or the browser refused.
-      if ((e as DOMException).name !== "NotAllowedError") setError(String(e));
+      if (currentLifetime.mounted && (e as DOMException).name !== "NotAllowedError") setError(String(e));
+      return;
+    }
+
+    if (!currentLifetime.mounted) {
+      stream.getTracks().forEach((track) => track.stop());
       return;
     }
 
@@ -78,10 +99,16 @@ export function SourcePanel() {
     const n = ++counter.current;
     const id = `share-${n}`;
     const label = videoTrack?.label || audioTrack?.label || `Source ${n}`;
-    const publications: LocalTrackPublication[] = [];
+    const lifecycle = createShareLifecycle<LocalTrackPublication>(stream, async (pub) => {
+      if (pub.track) await localParticipant.unpublishTrack(pub.track, true);
+    });
+    const source: Source = { id, label, mode, lifecycle };
+    active.current.set(id, source);
+    const onEnded = () => { void stopSource(source); };
+    stream.getTracks().forEach((track) => track.addEventListener("ended", onEnded, { once: true }));
     try {
       if (mode !== "audio" && videoTrack) {
-        publications.push(
+        await lifecycle.add(
           await localParticipant.publishTrack(videoTrack, {
             name: id,
             source: Track.Source.ScreenShare,
@@ -89,8 +116,8 @@ export function SourcePanel() {
           }),
         );
       }
-      if (audioTrack) {
-        publications.push(
+      if (audioTrack && !lifecycle.closed) {
+        await lifecycle.add(
           await localParticipant.publishTrack(audioTrack, {
             name: `${id}-audio`,
             source: Track.Source.ScreenShareAudio,
@@ -103,28 +130,23 @@ export function SourcePanel() {
         );
       }
     } catch (e) {
-      stream.getTracks().forEach((t) => t.stop());
-      setError(`Could not publish: ${String(e)}`);
+      await stopSource(source);
+      if (currentLifetime.mounted) setError(`Could not publish: ${String(e)}`);
       return;
     }
 
-    const source: Source = { id, label, mode, publications, stream };
-    setSources((prev) => [...prev, source]);
-
-    // The browser's own "Stop sharing" button ends the tracks; mirror that here.
-    const onEnded = () => stopSource(source);
-    videoTrack?.addEventListener("ended", onEnded);
-    audioTrack?.addEventListener("ended", onEnded);
+    if (currentLifetime.mounted && !lifecycle.closed) setSources((prev) => [...prev, source]);
   }
 
   // Tear everything down when leaving the room.
-  const sourcesRef = useRef(sources);
   useEffect(() => {
-    sourcesRef.current = sources;
-  }, [sources]);
-  useEffect(() => {
+    const currentLifetime = { mounted: true };
+    lifetime.current = currentLifetime;
+    const currentSources = active.current;
     return () => {
-      sourcesRef.current.forEach((s) => s.stream.getTracks().forEach((t) => t.stop()));
+      currentLifetime.mounted = false;
+      currentSources.forEach((source) => { void source.lifecycle.close(); });
+      currentSources.clear();
     };
   }, []);
 
@@ -146,13 +168,13 @@ export function SourcePanel() {
           </button>
         </span>
       ))}
-      <AddMenu onPick={addSource} />
-      {error && <span className="max-w-xs text-xs text-red-400">{error}</span>}
+      <AddMenu onPick={addSource} disabled={adding} />
+      {error && <span role="alert" className="max-w-xs text-xs text-red-400">{error}</span>}
     </div>
   );
 }
 
-function AddMenu({ onPick }: { onPick: (mode: ShareMode) => void }) {
+function AddMenu({ onPick, disabled }: { onPick: (mode: ShareMode) => void; disabled: boolean }) {
   const [open, setOpen] = useState(false);
   const pick = (m: ShareMode) => {
     setOpen(false);
@@ -162,10 +184,11 @@ function AddMenu({ onPick }: { onPick: (mode: ShareMode) => void }) {
     <div className="relative">
       <button
         type="button"
+        disabled={disabled}
         className="rounded-md bg-accent px-3 py-1 font-medium"
         onClick={() => setOpen((o) => !o)}
       >
-        + Share source
+        {disabled ? "Adding source…" : "+ Share source"}
       </button>
       {open && (
         <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col overflow-hidden rounded-md bg-panel-2 shadow-lg">

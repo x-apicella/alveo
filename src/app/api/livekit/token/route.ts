@@ -18,6 +18,9 @@ export const POST = handle(async (req) => {
   const { channelId } = body.parse(await req.json());
   const channel = await getMemberChannel(channelId, user.id);
   if (channel.kind !== "voice") throw new HttpError(400, "Not a voice channel");
+  if (!["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "NEXT_PUBLIC_LIVEKIT_URL"].every((name) => process.env[name])) {
+    throw new HttpError(503, "Voice service is not configured yet");
+  }
 
   const at = new AccessToken(requireEnv("LIVEKIT_API_KEY"), requireEnv("LIVEKIT_API_SECRET"), {
     identity: user.id,

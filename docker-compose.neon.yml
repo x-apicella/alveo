@@ -1,0 +1,33 @@
+# Hosted Neon database; this stack never replaces the configured database URL.
+# docker compose -f docker-compose.neon.yml up -d --build
+services:
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL:?Set the public LiveKit URL}
+    env_file: .env
+    environment:
+      ALLOW_DEV_LOGIN: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+
+  livekit:
+    image: livekit/livekit-server:v1.9
+    command: --config /etc/livekit.yaml
+    network_mode: host
+    volumes:
+      - ./livekit.prod.yaml:/etc/livekit.yaml:ro
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    network_mode: host
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    restart: unless-stopped
+
+volumes:
+  caddy_data:

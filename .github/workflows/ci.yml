@@ -1,0 +1,81 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: alveo
+          POSTGRES_PASSWORD: ci-password
+          POSTGRES_DB: alveo
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U alveo -d alveo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      ALVEO_DATABASE_URL: postgres://alveo:ci-password@localhost:5432/alveo
+      SESSION_SECRET: ci-only-session-secret-not-for-deployment
+      DND_AUTH_SHARED_SECRET: ci-only-sso-secret-not-for-deployment
+      NEXT_PUBLIC_LIVEKIT_URL: ws://localhost:7880
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm typecheck
+      - name: Build deployable image
+        run: docker build --build-arg NEXT_PUBLIC_LIVEKIT_URL="$NEXT_PUBLIC_LIVEKIT_URL" -t alveo:ci .
+      - name: Verify container startup and automatic migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name alveo-smoke --network host \
+            -e ALVEO_DATABASE_URL -e SESSION_SECRET -e DND_AUTH_SHARED_SECRET -e NEXT_PUBLIC_LIVEKIT_URL \
+            -e ALLOW_DEV_LOGIN=true alveo:ci
+          docker run -d --name alveo-smoke-secondary --network host \
+            -e ALVEO_DATABASE_URL -e SESSION_SECRET -e DND_AUTH_SHARED_SECRET -e NEXT_PUBLIC_LIVEKIT_URL \
+            -e PORT=3001 alveo:ci
+          ready=false
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:3000/api/health > /tmp/health.json && \
+               curl --fail --silent http://localhost:3001/api/health > /tmp/health-secondary.json; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = true
+          # Production must reject dev login even if accidentally enabled.
+          status=$(curl --silent -o /tmp/dev-login.json -w '%{http_code}' \
+            -H 'Content-Type: application/json' -d '{"username":"smoke"}' \
+            http://localhost:3000/api/auth/dev-login)
+          test "$status" = 403
+          docker exec ${{ job.services.postgres.id }} psql -U alveo -d alveo \
+            -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM users;'
+      - run: pnpm check:services
+      - run: pnpm test:smoke
+        env:
+          SMOKE_EVENTS_URL: http://localhost:3001
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:browser
+      - name: Container logs
+        if: always()
+        run: |
+          docker logs alveo-smoke 2>&1 || true
+          docker logs alveo-smoke-secondary 2>&1 || true

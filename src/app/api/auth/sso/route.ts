@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSession, upsertUser, verifyExternalToken } from "@/lib/auth";
+import { safeRedirectPath } from "@/lib/redirect-path";
 
 /**
  * Single sign-on entry point for the D&D app.
@@ -17,11 +18,12 @@ export async function GET(req: Request) {
     const identity = await verifyExternalToken(token);
     const user = await upsertUser(identity);
     await createSession(user.id);
-  } catch (err) {
-    console.error("SSO failed", err);
+  } catch {
     return NextResponse.redirect(new URL("/login?error=sso", url.origin));
   }
   // Only allow same-origin relative redirects.
-  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
-  return NextResponse.redirect(new URL(safeNext, url.origin));
+  const response = NextResponse.redirect(new URL(safeRedirectPath(next, url.origin), url.origin));
+  response.headers.set("Referrer-Policy", "no-referrer");
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }
