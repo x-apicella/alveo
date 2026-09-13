@@ -91,6 +91,14 @@ Browser limits to know about:
   the video. True per-application audio (Discord desktop style) needs a desktop
   wrapper using OS APIs; that is the planned next phase.
 
+## Testing source cleanup
+
+With Node.js 22.6 or newer, run `pnpm test` for source lifecycle regression tests.
+These cover partial publication rollback, failed unpublishes, and publication
+completion after leaving. Real media capture still needs a browser and LiveKit:
+verify browser/app stop-sharing controls and leaving during capture with a second
+participant in the room.
+
 ## Layout
 
 ```
