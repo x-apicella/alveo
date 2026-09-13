@@ -25,8 +25,10 @@ Neon Auth remain hosted separately. No LiveKit Cloud subscription is needed.
 
    Copy that single public-key line only. Never share the private key without `.pub`.
 7. Complete checkout. Record the public IPv4 and initial login instructions.
-   Ubuntu normally uses the `ubuntu` user. If checkout did not install the key,
-   use the provider's initial password locally with:
+   Ubuntu normally uses the `ubuntu` user. If the delivery email provides a temporary
+   password, first connect locally with `ssh ubuntu@YOUR_SERVER_IP` and complete
+   the required password change. The session may then close; this is normal.
+   If checkout did not install the key, use your new password locally with:
 
    ```bash
    ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@YOUR_SERVER_IP
