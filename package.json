@@ -11,11 +11,15 @@
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "check:services": "node --experimental-strip-types scripts/check-services.mjs",
+    "test:smoke": "node scripts/smoke.mjs",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "@livekit/components-react": "^2.9.24",
     "@livekit/components-styles": "^1.2.0",
+    "@neondatabase/auth": "0.5.0-beta",
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.11",
     "livekit-client": "^2.22.2",
@@ -27,6 +31,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

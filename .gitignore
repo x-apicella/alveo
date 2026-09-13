@@ -43,3 +43,7 @@ next-env.d.ts
 
 !.env.example
 livekit.prod.yaml
+
+# Browser test artifacts
+/test-results/
+/playwright-report/

@@ -22,7 +22,9 @@ export function ChatPanel({
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // The page keys this component by channel id, so state resets on navigation.
-  const initialCursor = initialMessages.at(-1)?.createdAt;
+  // An empty channel must replay from before the subscription starts. Otherwise
+  // a first message sent while EventSource connects can be permanently missed.
+  const initialCursor = initialMessages.at(-1)?.createdAt ?? "1970-01-01T00:00:00.000Z";
 
   // Live updates over Server-Sent Events, backed by Postgres NOTIFY.
   useEffect(() => {

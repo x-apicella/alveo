@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireEnv } from "./env";
 import type { User } from "@/db/schema";
+import { getNeonAuth } from "./neon-auth";
 
 const SESSION_COOKIE = "alveo_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
@@ -28,6 +29,7 @@ export async function verifyExternalToken(token: string): Promise<ExternalIdenti
     algorithms: ["HS256"],
     issuer: process.env.DND_AUTH_ISSUER || undefined,
     audience: "alveo",
+    requiredClaims: ["exp", "sub", "name"],
   });
   if (!payload.sub || typeof payload.name !== "string") {
     throw new Error("SSO token is missing sub or name");
@@ -82,7 +84,17 @@ export async function clearSession() {
 export async function getCurrentUser(): Promise<User | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
+  if (!token) {
+    const auth = getNeonAuth();
+    if (!auth) return null;
+    const { data, error } = await auth.getSession();
+    if (error || !data?.user) return null;
+    return upsertUser({
+      externalId: `neon:${data.user.id}`,
+      username: data.user.name || "Member",
+      avatarUrl: data.user.image,
+    });
+  }
   try {
     const { payload } = await jwtVerify(token, sessionKey(), { algorithms: ["HS256"] });
     if (!payload.sub) return null;

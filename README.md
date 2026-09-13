@@ -1,8 +1,8 @@
 # Alveo
 
 A small, self-hosted voice, video and text platform for a group of friends, built
-around one feature Discord doesn't have: **a single participant can publish any
-number of sources at once** — webcam and microphone plus several application
+around one feature Discord doesn't have: **a single participant can publish several
+sources at once** — webcam and microphone plus several application
 windows, each with or without its own audio, or the audio of an app on its own.
 
 ## Stack
@@ -10,10 +10,10 @@ windows, each with or without its own audio, or the audio of an app on its own.
 | Piece | Choice | Why |
 | --- | --- | --- |
 | Web app and API | Next.js (App Router) | One codebase for UI, API routes and SSR |
-| Media server | [LiveKit](https://livekit.io) (Apache 2.0) | Publishes unlimited tracks per participant; self-hosts in one binary |
+| Media server | [LiveKit](https://livekit.io) (Apache 2.0) | Supports multiple tracks per participant; self-hosts in one binary |
 | Database | Postgres via Drizzle ORM | Bundled in docker-compose, or a hosted provider |
 | Realtime chat | Server-Sent Events over Postgres `LISTEN/NOTIFY` | No extra service, works across replicas |
-| Auth | Single sign-on from the D&D app (HS256 JWT) | Reuses the accounts you already have |
+| Auth | Neon Auth email/password, plus optional D&D SSO | Uses your configured provider; passwords stay with Neon |
 | Hosting | One VPS with Docker Compose and Caddy | Cheapest and simplest; media server needs a real box anyway |
 
 ## Local development
@@ -30,7 +30,8 @@ Open http://localhost:3000, sign in with any username (dev login is enabled by
 Use **+ Share source** to add windows, screens or app audio on top of your camera.
 
 Note: if your shell already exports an unrelated `DATABASE_URL`, it is ignored.
-Alveo reads only `ALVEO_DATABASE_URL`.
+Alveo uses `ALVEO_DATABASE_URL` for queries and `ALVEO_DATABASE_DIRECT_URL` for
+migrations and realtime listeners.
 
 ## Production on a VPS
 
@@ -83,9 +84,9 @@ share from the browser's own "Stop sharing" bar unpublishes it automatically.
 
 Browser limits to know about:
 
-- Audio capture with a share works for browser tabs and whole screens everywhere,
-  and for individual windows on Windows in Chromium browsers. Firefox and Safari
-  capture no audio from windows.
+- Audio availability depends on browser, OS, and selected source. Requesting
+  audio does not guarantee an audio track; Alveo reports when none was captured.
+  Test each target platform instead of assuming tab, screen, or window parity.
 - Capturing an application's audio *without* sharing anything visual is not
   possible in a browser. "Audio only" here captures a screen or tab and discards
   the video. True per-application audio (Discord desktop style) needs a desktop
@@ -113,8 +114,8 @@ docker-compose.prod.yml   full stack for a VPS
 
 ## First deployment acceptance
 
-Production login requires the D&D app to actually issue the SSO tokens described
-above. Setting a login URL alone does not implement that integration. Confirm a
+Production login requires configured Neon Auth or the D&D app issuing SSO tokens.
+For D&D, setting a login URL alone does not implement that integration. Confirm a
 valid sign-in round trip before inviting the group; development login is always
 disabled in a production build.
 
@@ -140,3 +141,60 @@ With two separate browser profiles or devices:
 Test media from outside the VPS network. HTTPS success alone does not prove the
 media firewall ports are reachable. Record browser/OS and whether the picker
 actually offers audio for the selected source; capture support varies.
+
+## Using the connected Neon services
+
+Keep existing `.env` credentials when updating this repository; do not overwrite
+that file with the example. Configure:
+
+- `ALVEO_DATABASE_URL`: pooled Neon connection for application queries.
+- `ALVEO_DATABASE_DIRECT_URL`: direct endpoint for LISTEN and migrations. If omitted,
+  Alveo derives the standard Neon direct hostname; an explicitly pooled direct URL
+  is rejected. Local Postgres can use one URL for both.
+- `NEON_AUTH_URL`: the Neon Auth endpoint from your project.
+- `NEON_AUTH_COOKIE_SECRET`: a separate random secret of at least 32 characters.
+- `SESSION_SECRET`: retained for D&D and development sessions.
+
+The login page offers email sign-in and account creation when Neon Auth is
+configured. Enable email/password and any required email verification in Neon;
+configure the deployment origin as trusted if the provider requires it. Provider
+verification emails and a real account login need a user-controlled email address.
+The app uses the official Neon server SDK and an auth proxy. Neon identities are
+stored as `neon:<provider-user-id>`; existing D&D identities are preserved and are
+**not automatically linked by email**. Sessions are checked with Neon and cached
+for at most 60 seconds. D&D SSO remains optional and requires expiring tokens.
+
+For a VPS using Neon, use `docker-compose.neon.yml` instead of the bundled-Postgres
+production stack. It preserves the configured database URLs. Both deployment modes
+still require public app/media domains, TLS, a private `livekit.prod.yaml`, matching
+LiveKit credentials, and media/TURN networking. Neither Compose file provisions
+TURN automatically; finish the network setup in issue #9 before public rollout.
+A LiveKit Cloud deployment does not need the local LiveKit service.
+
+```bash
+pnpm db:migrate       # apply checked-in migrations using the direct connection
+pnpm check:services   # queries, tables, LISTEN/NOTIFY, anonymous Auth reachability
+pnpm build
+pnpm test
+```
+
+`GET /api/health` checks database/table readiness without exposing credentials.
+Startup migrations use a direct session and an advisory lock to serialize replicas.
+`pnpm test:smoke` runs against `SMOKE_BASE_URL` (default http://localhost:3000),
+using configured SSO and database credentials. It creates two temporary users and
+one server, tests invites, permissions, live chat, and logout, then deletes only
+its own fixtures. It never creates Neon Auth accounts or sends email. Run it against
+an explicitly selected test/staging database. CI supplies a disposable Postgres
+service, builds the production image, and runs this same authenticated smoke test.
+
+The full implementation backlog and deployment dependencies are tracked in
+[roadmap #5](https://github.com/x-apicella/alveo/issues/5).
+
+`pnpm test:browser` checks the production UI with Chromium, including message
+submission immediately after loading an empty channel. When LiveKit credentials
+are configured it also joins voice and verifies a synthetic microphone publication;
+this does not validate real microphone quality or cross-network media. With Neon
+Auth configured it checks the email form and rejection of invalid credentials.
+Install the test browser with `pnpm exec playwright install chromium`. Set
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE` to use an existing Chromium installation.
+Set `SMOKE_EVENTS_URL` to a second app instance to verify cross-process chat delivery.

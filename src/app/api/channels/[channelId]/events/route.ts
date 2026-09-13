@@ -35,6 +35,7 @@ export const GET = handle<RouteContext<"/api/channels/[channelId]/events">>(asyn
       const unsubscribe = await subscribe((event) => {
         if (event.channelId === channelId) flush();
       });
+      controller.enqueue(encoder.encode(": connected\n\n"));
       // Catch anything posted between the initial page load and the subscription.
       flush();
 
