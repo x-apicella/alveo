@@ -3,15 +3,11 @@
 import { useEffect, useState } from "react";
 import {
   ControlBar,
-  GridLayout,
   LiveKitRoom,
-  ParticipantTile,
-  RoomAudioRenderer,
-  useTracks,
 } from "@livekit/components-react";
-import { Track } from "livekit-client";
 import type { Channel } from "@/db/schema";
 import { SourcePanel } from "./SourcePanel";
+import { SourceViewer } from "./SourceViewer";
 
 interface Credentials {
   token: string;
@@ -68,6 +64,8 @@ export function VoiceRoom({ channel }: { channel: Channel }) {
       token={creds.token}
       serverUrl={creds.url}
       connect
+      connectOptions={{ autoSubscribe: false }}
+      options={{ adaptiveStream: true, dynacast: true }}
       audio
       video={false}
       onDisconnected={() => setJoined(false)}
@@ -78,30 +76,10 @@ export function VoiceRoom({ channel }: { channel: Channel }) {
         <span className="font-semibold">🔊 {channel.name}</span>
         <SourcePanel />
       </header>
-      <Stage />
-      <RoomAudioRenderer />
+      <SourceViewer />
       {/* Screen sharing is handled by SourcePanel so several shares can coexist. */}
       <ControlBar variation="minimal" controls={{ screenShare: false }} />
     </LiveKitRoom>
-  );
-}
-
-/**
- * Every published camera and screen-share track gets its own tile, so a
- * participant sharing a webcam plus two application windows shows three tiles.
- */
-function Stage() {
-  const tracks = useTracks(
-    [
-      { source: Track.Source.Camera, withPlaceholder: true },
-      { source: Track.Source.ScreenShare, withPlaceholder: false },
-    ],
-    { onlySubscribed: false },
-  );
-  return (
-    <GridLayout tracks={tracks} className="flex-1 min-h-0">
-      <ParticipantTile />
-    </GridLayout>
   );
 }
 
