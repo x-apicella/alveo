@@ -38,7 +38,7 @@ export function ChannelList({ server, channels }: { server: Server; channels: Ch
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center justify-between px-2 pt-3 pb-1 text-xs uppercase tracking-wide opacity-60">
         <span>{label}</span>
-        <button type="button" onClick={() => setAdding(kind)} title={`New ${kind} channel`}>
+        <button type="button" onClick={() => setAdding(kind)} aria-label={`New ${kind} channel`} title={`New ${kind} channel`}>
           +
         </button>
       </div>
@@ -48,11 +48,12 @@ export function ChannelList({ server, channels }: { server: Server; channels: Ch
           <Link
             key={c.id}
             href={`/s/${server.id}/c/${c.id}`}
-            className={`rounded-md px-2 py-1 text-sm ${
-              c.id === channelId ? "bg-white/10" : "opacity-80 hover:bg-white/5"
+            aria-current={c.id === channelId ? "page" : undefined}
+            className={`channel-link ${
+              c.id === channelId ? "is-active" : ""
             }`}
           >
-            {kind === "text" ? "# " : "🔊 "}
+            <span className="channel-symbol" aria-hidden="true">{kind === "text" ? "#" : "♬"}</span>
             {c.name}
           </Link>
         ))}
