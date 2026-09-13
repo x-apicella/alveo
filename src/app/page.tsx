@@ -42,6 +42,7 @@ export default async function Home() {
         <CreateServerForm />
         <JoinServerForm />
       </section>
+      <Link href="/privacy" className="text-sm underline opacity-70">Privacy policy</Link>
     </main>
   );
 }
