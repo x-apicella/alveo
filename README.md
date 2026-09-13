@@ -198,3 +198,8 @@ Auth configured it checks the email form and rejection of invalid credentials.
 Install the test browser with `pnpm exec playwright install chromium`. Set
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to use an existing Chromium installation.
 Set `SMOKE_EVENTS_URL` to a second app instance to verify cross-process chat delivery.
+
+## US East VPS deployment
+
+For the friends-group deployment using self-hosted LiveKit and the existing Neon
+database, follow [the executable VPS setup guide](deploy/vps/README.md).
