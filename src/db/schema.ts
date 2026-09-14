@@ -8,7 +8,10 @@ import {
   index,
   uniqueIndex,
   bigserial,
+  integer,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const channelKind = pgEnum("channel_kind", ["text", "voice"]);
 
@@ -48,6 +51,20 @@ export const memberships = pgTable(
   },
   (t) => [primaryKey({ columns: [t.serverId, t.userId] })],
 );
+
+export const invites = pgTable("invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  serverId: uuid("server_id").notNull().references(() => servers.id, { onDelete: "cascade" }),
+  code: text("code").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  maxUses: integer("max_uses"),
+  uses: integer("uses").notNull().default(0),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+}, (t) => [
+  index("invites_server_idx").on(t.serverId),
+  check("invites_usage_valid", sql`${t.uses} >= 0 AND (${t.maxUses} IS NULL OR (${t.maxUses} > 0 AND ${t.uses} <= ${t.maxUses}))`),
+]);
 
 export const channels = pgTable(
   "channels",

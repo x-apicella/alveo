@@ -29,6 +29,20 @@ test('signed-in browser can navigate channels and join local voice', async ({ pa
     await page.getByRole('button', { name: 'Send', exact: true }).click();
     await expect(page.getByText('Browser delivery check', { exact: true })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Message #general' })).toHaveValue('');
+    await page.getByRole('button', { name: 'Manage invites', exact: true }).click();
+    await expect(page.getByLabel('Invite link')).toHaveCount(1);
+    await page.getByLabel('Expires in hours').fill('2');
+    await page.getByLabel('Maximum new members').fill('3');
+    await page.getByRole('button', { name: 'Create invite', exact: true }).click();
+    await expect(page.getByLabel('Invite link')).toHaveCount(2);
+    const revokedLink = await page.getByLabel('Invite link').first().inputValue();
+    await expect(page.getByText('0 / 3 joins', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Revoke', exact: true }).first().click();
+    await expect(page.getByText('Revoked', { exact: true })).toBeVisible();
+    await page.goto(revokedLink);
+    await expect(page.getByRole('button', { name: 'Join server', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Join server', exact: true }).click();
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText('Invite is invalid or no longer available');
     if (process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET && process.env.NEXT_PUBLIC_LIVEKIT_URL) {
       const url = process.env.NEXT_PUBLIC_LIVEKIT_URL.replace(/^ws/, 'http');
       media = new RoomServiceClient(url, process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET);
