@@ -41,10 +41,20 @@ function getHub(): Hub {
       } catch {
         return;
       }
-      for (const l of listeners) l(event);
+      for (const l of listeners) {
+        try { l(event); } catch { /* One subscriber must not disrupt the hub. */ }
+      }
     })
     .then(() => undefined);
   g.alveoHub = { listeners, publisher, ready };
+  const hub = g.alveoHub;
+  // Observe initial LISTEN failure even when this hub was created by a POST.
+  // Future subscriptions can retry; existing SSE clients also poll the database.
+  void ready.catch(() => {
+    if (g.alveoHub === hub) g.alveoHub = undefined;
+    void listenerConn.end({ timeout: 1 }).catch(() => {});
+    void publisher.end({ timeout: 1 }).catch(() => {});
+  });
   return g.alveoHub;
 }
 

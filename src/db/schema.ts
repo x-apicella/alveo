@@ -6,6 +6,8 @@ import {
   pgEnum,
   primaryKey,
   index,
+  uniqueIndex,
+  bigserial,
 } from "drizzle-orm/pg-core";
 
 export const channelKind = pgEnum("channel_kind", ["text", "voice"]);
@@ -72,9 +74,15 @@ export const messages = pgTable(
       .notNull()
       .references(() => users.id),
     content: text("content").notNull(),
+    sequence: bigserial("sequence", { mode: "bigint" }).notNull(),
+    clientId: uuid("client_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("messages_channel_created_idx").on(t.channelId, t.createdAt)],
+  (t) => [
+    index("messages_channel_created_idx").on(t.channelId, t.createdAt),
+    uniqueIndex("messages_channel_sequence_idx").on(t.channelId, t.sequence),
+    uniqueIndex("messages_author_client_idx").on(t.authorId, t.clientId),
+  ],
 );
 
 export type User = typeof users.$inferSelect;

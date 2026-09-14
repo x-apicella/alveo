@@ -150,6 +150,43 @@ of device capture, network recovery, or six-person capacity. Real microphone,
 camera and multiple application capture together still need the sessions in #30,
 #11 and #36. Per-process audio isolation is not available in the browser.
 
+## Chat delivery and history
+
+Messages have database-assigned decimal sequence cursors. The insert trigger
+serializes writes within each channel until commit before assigning the cursor,
+so equal timestamps and concurrent transactions cannot leave replay gaps. Sequence
+values are strings in JSON (no JavaScript bigint precision loss); gaps are normal.
+The migration backfills existing history in `(created_at, id)` order and adds
+indexes for channel pagination and per-author retry IDs. It takes a table lock
+during the backfill: schedule an app maintenance window for large histories.
+This is an additive migration compatible with the previous application's writes;
+an app rollback should retain the new columns, indexes and trigger.
+
+The messages API accepts `?cursor=<sequence>` for forward batches of up to 200,
+or `?before=<sequence>` for older pages of up to 50. Responses include `hasMore`
+and `nextCursor`; all messages are ordered oldest to newest. The old `after=<ISO>`
+filter remains available for compatibility, but sequence cursors are required
+for lossless replay. SSE uses event IDs and `Last-Event-ID` to resume, drains every
+backlog page with backpressure, and checks the database every five seconds even
+if NOTIFY fails. Query failures close the stream so the browser reconnects;
+membership is rechecked during catch-up. An old SSE URL without a sequence cursor
+replays from the beginning, which old clients already deduplicate.
+
+The composer retains a UUID retry ID while a send is unconfirmed. Retrying the
+unchanged draft returns the original message; changing the text uses a new ID.
+Reusing an ID for different content/channel returns 409. IDs are scoped to the
+authenticated author. Retry state lives in the mounted composer, not across page
+reloads. The **Load older messages** control preserves the reader's scroll
+position; incoming messages and send acknowledgements merge by ID and sequence.
+
+`node scripts/chat-recovery-smoke.mjs` targets an explicitly selected disposable
+database/app, with `SMOKE_EVENTS_URL` optionally pointing to a second instance.
+CI runs it against disposable Postgres and two app containers. It checks migration
+of populated history, concurrent idempotent retries, cursor validation, 451 equal
+timestamps, complete forward/older pagination, cross-instance SSE resume, and
+commit ordering. Unit/browser fixtures cover query/listener failure, cancellation,
+backpressure, saved drafts, retry IDs and duplicate-free rendering.
+
 ## Layout
 
 ```
