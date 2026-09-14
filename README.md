@@ -79,7 +79,8 @@ matched on `sub`, so renaming in the D&D app carries over.
 `src/components/SourcePanel.tsx` calls `getDisplayMedia` once per source and
 publishes the resulting tracks to LiveKit with `source: ScreenShare` and
 `source: ScreenShareAudio`. Each new share has a UUID and a versioned publication
-name carrying its label and audio/video pairing. Older `share-N` publications are
+name carrying its label, capture mode and audio/video pairing; the authenticated
+LiveKit participant supplies ownership. Older `share-N` publications are
 also understood. Ending a share from the browser's own "Stop sharing" bar
 unpublishes it automatically.
 
@@ -93,7 +94,7 @@ buttons appear where the browser supports them. If autoplay is blocked, use
 **Enable audio playback**.
 
 Selections and volume survive temporary unpublication and reconnects within the
-active call. Leaving the call resets them. A newly captured share gets a new ID
+active call. Leaving the call resets them. A newly added share gets a new ID
 and requires selection again. LiveKit adaptive streaming sizes subscribed video
 layers to the rendered element, while dynacast avoids unused simulcast layers.
 These use the SDK's [selective subscriptions](https://docs.livekit.io/transport/media/subscribe/)
@@ -121,10 +122,33 @@ Browser limits to know about:
 ## Testing source cleanup
 
 With Node.js 22.6 or newer, run `pnpm test` for source lifecycle regression tests.
-These cover partial publication rollback, failed unpublishes, and publication
-completion after leaving. Real media capture still needs a browser and LiveKit:
-verify browser/app stop-sharing controls and leaving during capture with a second
-participant in the room.
+These cover partial publication rollback, failed unpublishes, ended-listener
+removal, and publication completion after leaving.
+
+The browser currently allows **three extra sources**, in addition to microphone
+and camera. This is a conservative product guard, not a measured capacity claim.
+Each source shows Publishing/Live state and can be stopped during publication.
+**Replace** opens a new display picker for that source's existing mode. Cancelling
+or choosing a source without required audio preserves the original. After a valid
+selection, the old capture stops before publishing the replacement, preserving
+the source ID and viewer preferences. Publication failure leaves the source
+stopped and reports an error; use Share source to retry explicitly.
+
+Temporary reconnects retain already-live capture for LiveKit's normal recovery.
+Pending pickers/publications are invalidated; reconnect never opens a picker or
+starts capture automatically. A terminal disconnect or unmount stops all captures
+and removes ended listeners. Leaving the current voice page (including logout)
+unmounts the room; persistent call navigation is tracked separately in #16.
+
+Run `pnpm exec playwright test tests/browser/source-lifecycle.spec.ts` for the
+standalone browser regression. It uses real synthetic MediaStream tracks and
+the production SourcePanel with mocked picker/signaling boundaries. It covers
+two video/audio pairs plus an audio-only source, the three-source guard,
+replacement/cancellation, partial failure, browser stop, pending stop, reconnect,
+disconnect and unmount races. These are deterministic lifecycle checks, not proof
+of device capture, network recovery, or six-person capacity. Real microphone,
+camera and multiple application capture together still need the sessions in #30,
+#11 and #36. Per-process audio isolation is not available in the browser.
 
 ## Layout
 
