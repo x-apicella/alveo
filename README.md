@@ -221,10 +221,12 @@ releases PTT. Browser PTT is not a system-wide desktop hotkey.
 microphone level meter and optional camera preview. These publish nothing and
 stop on cancel/navigation/join. Device IDs are remembered locally, but capture
 permission or active calls are never restored from storage. Microphone, camera
-and supported speaker selectors remain available during the call. Device removal
-stops affected inputs and asks the user to choose a replacement and enable it;
-it does not silently capture a different microphone/camera. Browsers without
-speaker-selection support use the operating system's sound settings.
+and supported speaker selectors remain available during the call. Device lists
+refresh when hardware changes. The SDK/browser can follow operating-system
+default-device changes; if a selected input disappears without recovery, the
+controls mute/disable it and ask the user to select and enable a replacement.
+Verify headset and default-device behavior on the target browser/OS. Browsers
+without speaker-selection support use the operating system's sound settings.
 
 Tabs/devices have independent UI sessions. LiveKit's account identity means a
 second connection to the same room can displace the first, which shows a
