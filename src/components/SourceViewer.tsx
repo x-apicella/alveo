@@ -7,7 +7,7 @@ import { defaultPreference, groupSources, wantsTrack, type ViewerPreference } fr
 
 type Source = ReturnType<typeof groupSources<TrackReference>>[number];
 
-export function SourceViewer() {
+export function SourceViewer({ deafened = false }: { deafened?: boolean }) {
   const tracks = useTracks(
     [Track.Source.Microphone, Track.Source.Camera, Track.Source.ScreenShare, Track.Source.ScreenShareAudio, Track.Source.Unknown],
     { onlySubscribed: false, updateOnlyOn: [RoomEvent.Reconnected, RoomEvent.ParticipantNameChanged,
@@ -31,6 +31,7 @@ export function SourceViewer() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {sources.map(source => (
           <SourceCard key={source.key} source={source}
+            deafened={deafened}
             preference={preferences[source.key] ?? defaultPreference(source.voice)}
             focused={focused === source.key}
             onFocus={() => setFocused(focused === source.key ? null : source.key)}
@@ -43,9 +44,10 @@ export function SourceViewer() {
   );
 }
 
-function SourceCard({ source, preference, focused, onFocus, onChange }: {
+function SourceCard({ source, preference, focused, onFocus, onChange, deafened }: {
   source: Source; preference: ViewerPreference; focused: boolean;
   onFocus: () => void; onChange: (patch: Partial<ViewerPreference>) => void;
+  deafened: boolean;
 }) {
   const connection = useConnectionState();
   const container = useRef<HTMLElement>(null);
@@ -59,11 +61,11 @@ function SourceCard({ source, preference, focused, onFocus, onChange }: {
   useEffect(() => {
     for (const { publication } of source.tracks) {
       if (publication instanceof RemoteTrackPublication) {
-        const desired = wantsTrack(publication.kind, preference);
+        const desired = wantsTrack(publication.kind, preference) && !(deafened && publication.kind === Track.Kind.Audio);
         if (publication.isDesired !== desired) publication.setSubscribed(desired);
       }
     }
-  }, [source.tracks, preference, connection]);
+  }, [source.tracks, preference, connection, deafened]);
 
   async function expand(kind: "fullscreen" | "pip") {
     setError(null);
@@ -116,7 +118,7 @@ function SourceCard({ source, preference, focused, onFocus, onChange }: {
         </div>
       )}
       {source.local && hasAudio && <p className="mt-2 text-xs text-muted">Your own audio is never played back.</p>}
-      {!source.local && wantsTrack("audio", preference) && audio.map(ref => (
+      {!deafened && !source.local && wantsTrack("audio", preference) && audio.map(ref => (
         <AudioTrack key={ref.publication.trackSid} trackRef={ref} volume={preference.volume} />
       ))}
       {error && <p role="alert" className="mt-2 text-sm text-red-400">{error}</p>}

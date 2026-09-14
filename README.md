@@ -137,8 +137,8 @@ stopped and reports an error; use Share source to retry explicitly.
 Temporary reconnects retain already-live capture for LiveKit's normal recovery.
 Pending pickers/publications are invalidated; reconnect never opens a picker or
 starts capture automatically. A terminal disconnect or unmount stops all captures
-and removes ended listeners. Leaving the current voice page (including logout)
-unmounts the room; persistent call navigation is tracked separately in #16.
+and removes ended listeners. Explicit leave, move to another call, logout, or
+closing the tab ends the room. Browsing another page keeps the active call alive.
 
 Run `pnpm exec playwright test tests/browser/source-lifecycle.spec.ts` for the
 standalone browser regression. It uses real synthetic MediaStream tracks and
@@ -149,6 +149,46 @@ disconnect and unmount races. These are deterministic lifecycle checks, not proo
 of device capture, network recovery, or six-person capacity. Real microphone,
 camera and multiple application capture together still need the sessions in #30,
 #11 and #36. Per-process audio isolation is not available in the browser.
+
+## Persistent voice calls
+
+The root layout owns one active call per tab. Text-channel, server, home and
+privacy navigation keep microphone, camera, shares, viewer choices and audio
+alive. The connected-channel bar stays visible; **Hide call** collapses its view
+without unmounting audio or capture. Use **Move voice here** in another voice
+channel to stop the old call and its shares. **Leave voice**, logout, tab close
+and a terminal disconnect release devices. Every explicit join/rejoin fetches
+fresh credentials; cancelled or superseded requests cannot start a late call.
+Temporary network reconnects use the SDK's existing session recovery.
+
+The bar provides mute, camera, deafen, devices and push-to-talk controls, plus
+participant speaking/sharing state. Deafen silences remote audio and microphone;
+undeafen restores the previous microphone choice and per-source audio settings.
+Push-to-talk uses Space while this tab has focus, excluding text inputs and
+ordinary buttons/links; the **Hold to talk** control also supports pointer/touch
+and keyboard use. Releasing the key/pointer, losing focus or hiding the page
+releases PTT. Browser PTT is not a system-wide desktop hotkey.
+
+**Check microphone and camera** explicitly starts local prejoin previews, with a
+microphone level meter and optional camera preview. These publish nothing and
+stop on cancel/navigation/join. Device IDs are remembered locally, but capture
+permission or active calls are never restored from storage. Microphone, camera
+and supported speaker selectors remain available during the call. Device removal
+stops affected inputs and asks the user to choose a replacement and enable it;
+it does not silently capture a different microphone/camera. Browsers without
+speaker-selection support use the operating system's sound settings.
+
+Tabs/devices have independent UI sessions. LiveKit's account identity means a
+second connection to the same room can displace the first, which shows a
+terminal-disconnect message and requires an explicit rejoin. Reload never
+recreates an active call. Desktop handoff and global shortcuts remain separate
+work in #10/#31.
+
+`pnpm exec playwright test tests/browser/voice-session.spec.ts` verifies persistent
+navigation, move/logout cleanup, cancelled join and fresh rejoin tokens, deafen,
+PTT, prejoin preview and unplug handling with actual SDK publications and
+synthetic media. Network signaling and route navigation are mocked; cross-network
+real-device media quality remains the acceptance session in #30.
 
 ## Chat delivery and history
 

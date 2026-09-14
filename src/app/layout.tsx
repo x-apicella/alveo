@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Chakra_Petch } from "next/font/google";
 import "@livekit/components-styles";
 import "./globals.css";
+import { VoiceSessionProvider } from "@/components/VoiceSession";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,7 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${headingFont.variable} h-full antialiased`}
     >
-      <body className="min-h-full h-dvh flex flex-col overflow-hidden">{children}</body>
+      <body className="min-h-full h-dvh flex flex-col overflow-hidden"><VoiceSessionProvider>{children}</VoiceSessionProvider></body>
     </html>
   );
 }
