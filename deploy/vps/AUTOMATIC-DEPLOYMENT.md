@@ -14,6 +14,22 @@ A deployment SSH key alone cannot substitute arbitrary root control scripts. Reg
 and incoming files are removed afterward. Database/session secrets remain on the
 VPS. LiveKit, Redis and Caddy are not restarted.
 
+## Enrollment from the machine with existing SSH access
+
+From this reviewed checkout on that machine, run:
+
+```bash
+bash scripts/enroll-auto-deploy.sh USER@VPS_HOST
+```
+
+This installs the receiver, generates a separate restricted CI key, verifies it,
+and stores that key directly in GitHub production secrets. It does not copy the
+administrator key. It requires existing pinned SSH trust, passwordless sudo,
+Node 22 on the VPS, and authenticated GitHub CLI repository admin access. Then
+complete the smoke setup and any initial migration review below before rerunning
+main CI. Re-enrollment adds a new dedicated key; remove obsolete CI public keys
+from that account after confirming the new enrollment works.
+
 ## One-time activation (server administrator)
 
 This setup requires existing administrator SSH access, Ubuntu/Python 3/Docker
