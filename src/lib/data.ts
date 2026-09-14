@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { HttpError } from "./api";
 import type { Channel, Server } from "@/db/schema";
@@ -85,16 +85,22 @@ export async function joinByInvite(code: string, userId: string): Promise<Server
 
 export interface MessageView {
   id: string;
+  sequence: string;
   content: string;
   createdAt: string;
   author: { id: string; username: string; avatarUrl: string | null };
 }
 
-/** Messages newer than `after` (ISO timestamp) in ascending order, or the latest page. */
-export async function listMessages(channelId: string, after?: string): Promise<MessageView[]> {
+export async function listMessagePage(channelId: string, options: { cursor?: string; before?: string; after?: string } = {}) {
+  const forward = options.cursor !== undefined || options.after !== undefined;
+  const limit = forward ? 200 : 50;
+  const boundary = options.cursor !== undefined ? gt(schema.messages.sequence, BigInt(options.cursor))
+    : options.before !== undefined ? lt(schema.messages.sequence, BigInt(options.before))
+    : options.after !== undefined ? gt(schema.messages.createdAt, new Date(options.after)) : undefined;
   const base = db
     .select({
       id: schema.messages.id,
+      sequence: sql<string>`${schema.messages.sequence}::text`,
       content: schema.messages.content,
       createdAt: schema.messages.createdAt,
       author: {
@@ -106,17 +112,15 @@ export async function listMessages(channelId: string, after?: string): Promise<M
     .from(schema.messages)
     .innerJoin(schema.users, eq(schema.users.id, schema.messages.authorId));
 
-  const rows = after
-    ? await base
-        .where(and(eq(schema.messages.channelId, channelId), gt(schema.messages.createdAt, new Date(after))))
-        .orderBy(asc(schema.messages.createdAt))
-        .limit(200)
-    : (
-        await base
-          .where(eq(schema.messages.channelId, channelId))
-          .orderBy(desc(schema.messages.createdAt))
-          .limit(50)
-      ).reverse();
+  const rows = await base.where(and(eq(schema.messages.channelId, channelId), boundary))
+    .orderBy(forward ? asc(schema.messages.sequence) : desc(schema.messages.sequence)).limit(limit + 1);
+  const hasMore = rows.length > limit;
+  const selected = rows.slice(0, limit);
+  if (!forward) selected.reverse();
+  const messages = selected.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
+  return { messages, hasMore, nextCursor: (forward ? messages.at(-1) : messages[0])?.sequence ?? null };
+}
 
-  return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
+export async function listMessages(channelId: string): Promise<MessageView[]> {
+  return (await listMessagePage(channelId)).messages;
 }
