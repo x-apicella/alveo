@@ -378,5 +378,28 @@ Set `SMOKE_EVENTS_URL` to a second app instance to verify cross-process chat del
 
 ## US East VPS deployment
 
+### Server invitations
+
+Server owners can use **Manage invites** in the channel sidebar to create, copy,
+inspect, and revoke links. New links expire in 1–168 hours and admit 1–100 new
+members; a newly created server starts with a seven-day, 25-member link. Opening
+an invitation requires an explicit **Join server** click. Existing-member retries
+do not consume uses. Redemption and revocation serialize in Postgres across app
+instances. Revoking an invite does not remove members who already joined.
+
+Migration `0002` imports existing permanent links with a seven-day transition
+window and no usage cap, preserving their URLs. Owners can revoke these links
+immediately. The old `servers.invite_code` column remains for schema compatibility,
+but is never a fallback for redemption. Deploy all app instances together: older
+images still accept permanent links and cannot safely serve alongside this release
+or be used as a rollback once invite restrictions are relied upon. No database
+rollback is required to keep the old column; doing so would discard invite controls.
+
+`node scripts/invite-smoke.mjs` uses the same isolated test environment as the
+other smoke scripts. CI checks populated-schema migration, denied management,
+cross-server isolation, revoked/expired links, explicit join, and concurrent
+redemption/retries across two app instances. Roles, bans, private channels, member
+removal, and active media revocation remain tracked in issue #18.
+
 For the friends-group deployment using self-hosted LiveKit and the existing Neon
 database, follow [the executable VPS setup guide](deploy/vps/README.md).
