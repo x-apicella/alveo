@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "desktop": "electron desktop/main.mjs",
+    "desktop:install": "install-electron",
+    "test:desktop": "node --test tests/desktop/*.test.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -38,6 +41,7 @@
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
+    "electron": "44.3.0",
     "esbuild": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
