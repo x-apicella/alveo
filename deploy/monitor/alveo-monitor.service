@@ -1,0 +1,23 @@
+[Unit]
+Description=External Alveo readiness and media monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=alveo-monitor
+WorkingDirectory=/opt/alveo-monitor
+EnvironmentFile=/etc/alveo-monitor.env
+Environment=MONITOR_STATE_DIR=/var/lib/alveo-monitor
+ExecStart=/usr/bin/node /opt/alveo-monitor/scripts/monitor.mjs
+StateDirectory=alveo-monitor
+StateDirectoryMode=0700
+UMask=0077
+TimeoutStartSec=75
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/alveo-monitor
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+

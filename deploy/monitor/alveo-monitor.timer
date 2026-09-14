@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Alveo from an independent host every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=60s
+RandomizedDelaySec=5s
+Unit=alveo-monitor.service
+
+[Install]
+WantedBy=timers.target
