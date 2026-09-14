@@ -42,7 +42,7 @@ test('signed-in browser can navigate channels and join local voice', async ({ pa
     await page.goto(revokedLink);
     await expect(page.getByRole('button', { name: 'Join server', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Join server', exact: true }).click();
-    await expect(page.getByRole('alert')).toHaveText('Invite is invalid or no longer available');
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText('Invite is invalid or no longer available');
     if (process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET && process.env.NEXT_PUBLIC_LIVEKIT_URL) {
       const url = process.env.NEXT_PUBLIC_LIVEKIT_URL.replace(/^ws/, 'http');
       media = new RoomServiceClient(url, process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET);
