@@ -2,6 +2,19 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createShareLifecycle } from "../src/lib/share-lifecycle.ts";
 
+test("close removes capture-ended listeners and stops each track only once", async () => {
+  const track = new EventTarget();
+  let stops = 0;
+  let ended = 0;
+  track.stop = () => stops++;
+  const source = createShareLifecycle({ getTracks: () => [track] }, async () => {}, () => ended++);
+  await source.close();
+  await source.close();
+  track.dispatchEvent(new Event("ended"));
+  assert.equal(stops, 1);
+  assert.equal(ended, 0);
+});
+
 test("cleanup stops all capture immediately and attempts every unpublish despite failure", async () => {
   let stopped = 0;
   const removed = [];

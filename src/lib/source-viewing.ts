@@ -1,6 +1,6 @@
 /** Versioned publication names pair a share's tracks without relying on track type or order. */
-export function shareTrackName(id: string, label: string, kind: "audio" | "video") {
-  return JSON.stringify({ alveo: 1, id, label: label.slice(0, 160), kind });
+export function shareTrackName(id: string, label: string, kind: "audio" | "video", mode?: "video+audio" | "video" | "audio") {
+  return JSON.stringify({ alveo: 1, id, label: label.slice(0, 160), kind, mode });
 }
 
 export interface PublicationRef {

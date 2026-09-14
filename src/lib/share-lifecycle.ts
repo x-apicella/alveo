@@ -2,10 +2,13 @@
 export function createShareLifecycle<T>(
   stream: Pick<MediaStream, "getTracks">,
   unpublish: (publication: T) => Promise<unknown>,
+  onEnded?: () => void,
 ) {
   let closed = false;
   let closing: Promise<PromiseSettledResult<unknown>[]> | undefined;
   const publications: T[] = [];
+  const tracks = stream.getTracks();
+  if (onEnded) tracks.forEach((track) => track.addEventListener("ended", onEnded, { once: true }));
   return {
     get closed() { return closed; },
     async add(publication: T) {
@@ -19,7 +22,10 @@ export function createShareLifecycle<T>(
       if (closing) return closing;
       closed = true;
       // Release capture immediately, even if network cleanup fails or is slow.
-      stream.getTracks().forEach((track) => track.stop());
+      tracks.forEach((track) => {
+        if (onEnded) track.removeEventListener("ended", onEnded);
+        track.stop();
+      });
       closing = Promise.allSettled(publications.map((publication) =>
         Promise.resolve().then(() => unpublish(publication)),
       ));
