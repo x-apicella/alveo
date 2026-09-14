@@ -7,6 +7,16 @@ import { fileURLToPath } from 'node:url';
 const composeFiles = ['-f', 'deploy/vps/compose.yaml', '-f', 'deploy/vps/release.compose.yaml'];
 const digestPattern = /^ghcr\.io\/x-apicella\/alveo@sha256:[a-f0-9]{64}$/;
 
+export const smokeSessionScript = `
+      import { createHmac } from 'node:crypto';
+      const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');
+      const now = Math.floor(Date.now() / 1000);
+      const body = encode({alg:'HS256',typ:'JWT'}) + '.' + encode({sub:process.argv[2],iat:now,exp:now+300});
+      if (!process.env.SESSION_SECRET) process.exit(1);
+      const signature = createHmac('sha256', process.env.SESSION_SECRET).update(body).digest('base64url');
+      process.stdout.write('alveo_session=' + body + '.' + signature);
+`;
+
 export async function smoke(base, credentials, request = fetch) {
   const check = async (path, init = {}) => {
     const response = await request(base + path, {
@@ -35,8 +45,9 @@ export function readCredentials(path) {
   if ((statSync(path).mode & 0o077) !== 0) throw new Error('Smoke credentials must have mode 600');
   const value = JSON.parse(readFileSync(path, 'utf8'));
   const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
-  if (typeof value.cookie !== 'string' || !/^alveo_session=[^;\s]+$/.test(value.cookie) ||
-      !uuid.test(value.textChannelId) || !uuid.test(value.voiceChannelId)) {
+  const identity = typeof value.userId === 'string' && uuid.test(value.userId);
+  const cookie = typeof value.cookie === 'string' && /^alveo_session=[^;\s]+$/.test(value.cookie);
+  if ((!identity && !cookie) || !uuid.test(value.textChannelId) || !uuid.test(value.voiceChannelId)) {
     throw new Error('Invalid smoke credentials');
   }
   return value;
@@ -88,13 +99,20 @@ async function main() {
   const credentials = readCredentials('.deploy/release-smoke.json');
   const directory = '.deploy/releases';
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const command = (args, imageRef = image) => {
+  const command = (args, imageRef = image, input) => {
     const result = spawnSync('docker', args, {
       env: { ...process.env, ALVEO_RELEASE_IMAGE: imageRef },
-      encoding: 'utf8', timeout: 180000, maxBuffer: 2 * 1024 * 1024,
+      encoding: 'utf8', input, timeout: 180000, maxBuffer: 2 * 1024 * 1024,
     });
     if (result.status !== 0) throw new Error('Docker release operation failed');
     return result.stdout.trim();
+  };
+  const freshCredentials = () => {
+    if (!credentials.userId) return credentials;
+    const container = command(['compose', ...composeFiles, 'ps', '-q', 'app']);
+    if (!/^[a-f0-9]{12,64}$/.test(container)) throw new Error('Missing app container');
+    const cookie = command(['exec', '-i', container, 'node', '--input-type=module', '-', credentials.userId], image, smokeSessionScript);
+    return { ...credentials, cookie };
   };
   const atomic = (name, value) => {
     const path = `${directory}/${name}`;
@@ -119,7 +137,7 @@ async function main() {
     },
     async healthy() {
       for (let attempt = 0; attempt < 30; attempt++) {
-        try { await smoke('http://127.0.0.1:3000', credentials); return; }
+        try { await smoke('http://127.0.0.1:3000', freshCredentials()); return; }
         catch { if (attempt < 29) await new Promise(r => setTimeout(r, 2000)); }
       }
       throw new Error('Release health gates failed');

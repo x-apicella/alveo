@@ -1,5 +1,9 @@
 # App releases and rollback
 
+For automatic main deployments, use [the activation guide](AUTOMATIC-DEPLOYMENT.md).
+The manual cookie setup below remains supported; automation uses UUID-only
+configuration and fresh five-minute sessions generated inside the app container.
+
 CI publishes the **same image it tested** to `ghcr.io/x-apicella/alveo` after a
 successful push to `main`. The workflow summary records its immutable digest and
 commit. Pull requests cannot publish. Registry retention must keep the active and
