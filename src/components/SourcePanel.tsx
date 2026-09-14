@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocalParticipant } from "@livekit/components-react";
 import { Track, type LocalTrackPublication } from "livekit-client";
 import { createShareLifecycle } from "@/lib/share-lifecycle";
+import { shareTrackName } from "@/lib/source-viewing";
 
 type ShareMode = "video+audio" | "video" | "audio";
 
@@ -97,7 +98,7 @@ export function SourcePanel() {
     }
 
     const n = ++counter.current;
-    const id = `share-${n}`;
+    const id = crypto.randomUUID();
     const label = videoTrack?.label || audioTrack?.label || `Source ${n}`;
     const lifecycle = createShareLifecycle<LocalTrackPublication>(stream, async (pub) => {
       if (pub.track) await localParticipant.unpublishTrack(pub.track, true);
@@ -110,7 +111,7 @@ export function SourcePanel() {
       if (mode !== "audio" && videoTrack) {
         await lifecycle.add(
           await localParticipant.publishTrack(videoTrack, {
-            name: id,
+            name: shareTrackName(id, label, "video"),
             source: Track.Source.ScreenShare,
             simulcast: true,
           }),
@@ -119,7 +120,7 @@ export function SourcePanel() {
       if (audioTrack && !lifecycle.closed) {
         await lifecycle.add(
           await localParticipant.publishTrack(audioTrack, {
-            name: `${id}-audio`,
+            name: shareTrackName(id, label, "audio"),
             source: Track.Source.ScreenShareAudio,
             // Music and game audio: keep it stereo and skip voice processing.
             forceStereo: true,

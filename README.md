@@ -78,9 +78,35 @@ matched on `sub`, so renaming in the D&D app carries over.
 
 `src/components/SourcePanel.tsx` calls `getDisplayMedia` once per source and
 publishes the resulting tracks to LiveKit with `source: ScreenShare` and
-`source: ScreenShareAudio`. LiveKit treats every publication independently, so the
-room renders one tile per camera or window and mixes every audio track. Ending a
-share from the browser's own "Stop sharing" bar unpublishes it automatically.
+`source: ScreenShareAudio`. Each new share has a UUID and a versioned publication
+name carrying its label and audio/video pairing. Older `share-N` publications are
+also understood. Ending a share from the browser's own "Stop sharing" bar
+unpublishes it automatically.
+
+The **Sources and audio** list shows cameras, shares, audio-only sources and
+microphones with their owner and live/paused state. Remote microphones play by
+default; use **Watch** or **Listen** to subscribe to other sources. **Stop watching**
+stops both video and paired audio. Each source has independent mute and volume,
+including participant microphones; your own audio is never played locally.
+**Focus** expands a selected video in the grid. Fullscreen and picture-in-picture
+buttons appear where the browser supports them. If autoplay is blocked, use
+**Enable audio playback**.
+
+Selections and volume survive temporary unpublication and reconnects within the
+active call. Leaving the call resets them. A newly captured share gets a new ID
+and requires selection again. LiveKit adaptive streaming sizes subscribed video
+layers to the rendered element, while dynacast avoids unused simulcast layers.
+These use the SDK's [selective subscriptions](https://docs.livekit.io/transport/media/subscribe/)
+and [per-track audio rendering](https://docs.livekit.io/reference/components/react/concepts/rendering-audio/).
+
+Run `pnpm exec playwright test tests/browser/source-viewing.spec.ts` for a
+standalone Chromium regression with synthetic audio/video and the real LiveKit
+React components. It checks late publication, independent same-type tracks,
+keyboard selection, actual media-element volume, mute, focus, stop, reconnect
+preferences, and suppression of local playback without a database or media server.
+Unit tests additionally cover changed labels, legacy names and malformed names.
+This does not measure network delivery or real-device A/V quality; those remain
+part of the two-person acceptance session (#30) and capacity testing (#36).
 
 Browser limits to know about:
 
