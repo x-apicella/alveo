@@ -41,8 +41,9 @@ did not have the existing VPS SSH key when this workflow was prepared.
    ```bash
    cd /opt/alveo
    umask 077
-   container=$(docker compose -f deploy/vps/compose.yaml ps -q app)
-   docker exec -i "$container" node --input-type=module - < scripts/provision-release-smoke.mjs > .deploy/release-smoke.json
+   # Use the verified image digest selected from a successful main CI run.
+   image=ghcr.io/x-apicella/alveo@sha256:VERIFIED_DIGEST
+   docker run --rm --network host --env-file .deploy/app.env --entrypoint node "$image" /opt/alveo-release/scripts/provision-release-smoke.mjs > .deploy/release-smoke.json
    chmod 600 .deploy/release-smoke.json
    ```
 

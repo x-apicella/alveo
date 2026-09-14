@@ -116,8 +116,8 @@ jobs:
           done
       - name: Verify private deployment fixture is idempotent
         run: |
-          docker exec -i alveo-smoke node --input-type=module - < scripts/provision-release-smoke.mjs > /tmp/smoke-ids-first.json
-          docker exec -i alveo-smoke node --input-type=module - < scripts/provision-release-smoke.mjs > /tmp/smoke-ids-second.json
+          docker exec alveo-smoke node /opt/alveo-release/scripts/provision-release-smoke.mjs > /tmp/smoke-ids-first.json
+          docker exec alveo-smoke node /opt/alveo-release/scripts/provision-release-smoke.mjs > /tmp/smoke-ids-second.json
           cmp /tmp/smoke-ids-first.json /tmp/smoke-ids-second.json
       - run: pnpm check:services
       - run: pnpm test:smoke
