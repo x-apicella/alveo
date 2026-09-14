@@ -71,6 +71,7 @@ test('stopping while the replacement picker is open cannot resume sharing', asyn
 
 test('failed replacement stops both captures and can be retried explicitly', async ({ page }) => {
   await add(page);
+  await expect(page.getByRole('button', { name: /^Replace / })).toBeEnabled();
   await page.evaluate('window.fixture.configure({failAudio:true})');
   await page.getByRole('button', { name: /^Replace / }).click();
   await expect(page.getByRole('alert')).toContainText('the previous source has stopped');
@@ -98,6 +99,23 @@ for (const action of ['stop', 'reconnecting', 'disconnected', 'unmount']) {
     expect((await snapshot(page)).captures).toBe(1);
   });
 }
+
+test('experimental motion quality falls back and stop wins during pending constraints', async ({ page }) => {
+  await page.getByRole('combobox', { name: 'Share quality' }).selectOption('motion');
+  await page.evaluate('window.fixture.configure({rejectMotion:true})');
+  await add(page);
+  await expect(page.getByRole('button', { name: /^Replace / })).toBeEnabled();
+  await expect(page.getByText('reduced quality', { exact: false })).toBeVisible();
+  expect(await page.evaluate('window.fixture.snapshot().encodings')).toEqual([{ codec: 'vp8', maxBitrate: 2500000, maxFramerate: 30 }]);
+  await page.getByRole('button', { name: /^Stop sharing / }).click();
+  await page.evaluate('window.fixture.configure({delayConstraints:true})');
+  await add(page);
+  await expect(page.getByText('· Publishing…', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: /^Stop sharing / }).click();
+  await page.evaluate('window.fixture.resolveConstraints()');
+  await expect.poll(async () => (await snapshot(page)).liveTracks).toBe(0);
+  expect((await snapshot(page)).publications).toHaveLength(0);
+});
 
 for (const action of ['reconnecting', 'disconnected', 'unmount']) {
   test(`picker result is discarded after ${action}`, async ({ page }) => {

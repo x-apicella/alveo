@@ -136,7 +136,7 @@ export function SourcePanel() {
         const configured = await configureShareVideo(videoTrack, quality);
         if (!isCurrent() || lifecycle.closed) { await stopSource(source); return; }
         const { width, height, frameRate } = configured.settings;
-        source.detail = `${width ?? "?"}×${height ?? "?"} · ${frameRate ? Math.round(frameRate) : "?"} fps · ${STREAM_PRESETS[configured.quality].bitrate / 1_000_000} Mb/s cap${configured.quality !== quality ? " · reduced quality" : ""}`;
+        source.detail = `${width ?? "?"}×${height ?? "?"} · ${frameRate ? Math.round(frameRate) : "?"} fps · ${STREAM_PRESETS[configured.quality].bitrate / 1_000_000} Mb/s main layer cap${configured.quality !== quality ? " · reduced quality" : ""}`;
         await lifecycle.add(
           await localParticipant.publishTrack(videoTrack, {
             name: shareTrackName(id, label, "video", mode),

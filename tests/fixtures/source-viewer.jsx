@@ -39,6 +39,12 @@ window.fixture = {
           ? new RemoteAudioTrack(destination.stream.getAudioTracks()[0].clone(), pub.trackSid, undefined)
           : new RemoteVideoTrack(videoStream.getVideoTracks()[0].clone(), pub.trackSid, undefined);
         media.source = pub.source;
+        media.getRTCStatsReport = async () => new Map([
+          ['rtp', { id: `${id}-${kind}-${revision}`, type: local ? 'outbound-rtp' : 'inbound-rtp', timestamp: performance.now(),
+            bytesSent: 1000, bytesReceived: 1000, framesPerSecond: 30, frameWidth: 320, frameHeight: 180,
+            codecId: 'codec', packetsLost: 3, jitter: 0.002, framesDropped: 2 }],
+          ['codec', { id: 'codec', type: 'codec', mimeType: kind === 'video' ? 'video/VP8' : 'audio/opus' }],
+        ]);
         pub.setTrack(media);
         const participant = local ? room.localParticipant : remote;
         participant.trackPublications.set(pub.trackSid, pub);

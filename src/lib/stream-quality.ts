@@ -16,7 +16,7 @@ export async function configureShareVideo(track: Pick<MediaStreamTrack, "applyCo
       return { quality, settings: track.getSettings(), encoding: { maxBitrate: preset.bitrate, maxFramerate: preset.fps } };
     } catch (error) {
       // Permission loss/source exit needs explicit retry, not a quality downgrade.
-      if (!(error instanceof Error) || error.name !== "OverconstrainedError" || quality === "low") throw error;
+      if (typeof error !== "object" || error === null || !("name" in error) || error.name !== "OverconstrainedError" || quality === "low") throw error;
     }
   }
   throw new Error("No supported capture preset");

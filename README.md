@@ -150,6 +150,54 @@ of device capture, network recovery, or six-person capacity. Real microphone,
 camera and multiple application capture together still need the sessions in #30,
 #11 and #36. Per-process audio isolation is not available in the browser.
 
+## Share quality and diagnostics
+
+Choose **Share quality** before adding or replacing a source. Existing shares
+keep their settings until replaced. The initial preset is Balanced; no preset
+or reconnect can start a new capture without the source picker.
+
+| Preset | Requested maximum | Main video layer bitrate cap |
+| --- | --- | --- |
+| Low | 854×480, 15 fps | 0.8 Mb/s |
+| Balanced (default) | 1280×720, 30 fps | 2.5 Mb/s |
+| Motion (experimental) | 1920×1080, 60 fps | 6 Mb/s |
+
+These are requested limits, not measured device capabilities. Unsupported capture
+constraints fall back Motion → Balanced → Low; permission loss and ended sources
+stop instead of silently changing capture. The source row shows actual capture
+settings and any downgrade. Simulcast adds lower video layers, and paired stereo
+audio has a separate 128 kb/s cap: the main-layer cap is **not** a total upstream,
+viewer, or VPS bandwidth budget. Dynacast suppresses unused layers and adaptive
+subscriptions size video to the rendered view; source selection remains explicit.
+
+VP8 is the conservative compatibility baseline. Hardware acceleration is chosen
+by the browser/OS, not guaranteed by Alveo. Advanced VP9/AV1/H265 and multi-codec
+encoding should be enabled only after supported-client and CPU/bandwidth tests;
+extra codec encodes can increase publisher load. Screen/game audio retains stereo
+without microphone-style echo cancellation, noise suppression or gain control;
+microphone capture uses the SDK's voice defaults.
+
+**Stream diagnostics** displays local WebRTC statistics while open: actual
+capture/encoded/decoded FPS when available, codec, aggregate RTP bitrate across
+simulcast layers, RTT or jitter/loss, encode/decode time, dropped frames and the
+browser's encoder limitation reason. Missing values remain unavailable, and
+counter baselines reset on republication. These diagnostics are ephemeral and
+never uploaded, logged or persisted. Encoder CPU/bandwidth reports, capture FPS,
+network timing and decode time describe different stages; none alone measures
+capture-to-playback latency or A/V synchronization.
+
+1080p60 remains experimental and unmeasured. #17 stays open for supported-client
+codec/hardware evaluation and measured latency/sync targets, with #36 owning the
+six-person sustained capacity/cost acceptance. Use the three-source guard and
+Balanced default until those measurements justify changing them. Test Motion
+with a remote viewer and inspect both sender and receiver statistics before
+using it for a sustained session. Protected/unsupported capture remains out of
+scope as documented in the browser/native capture issues.
+
+Unit and standalone Chromium checks cover preset fallback, capture cancellation
+during constraints, actual publish encoding options, RTP deltas/counter resets
+and diagnostics rendering. They do not establish a measured 1080p60 guarantee.
+
 ## Persistent voice calls
 
 The root layout owns one active call per tab. Text-channel, server, home and
