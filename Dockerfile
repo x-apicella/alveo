@@ -25,5 +25,8 @@ COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 # Migrations are applied by src/instrumentation.ts at startup.
 COPY drizzle ./drizzle
+COPY scripts/release-vps.mjs /opt/alveo-release/scripts/release-vps.mjs
+COPY deploy/vps/compose.yaml deploy/vps/release.compose.yaml /opt/alveo-release/deploy/vps/
+COPY deploy/rollback-policy.json /opt/alveo-release/deploy/rollback-policy.json
 EXPOSE 3000
 CMD ["node", "server.js"]

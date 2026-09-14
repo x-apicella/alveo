@@ -108,6 +108,12 @@ jobs:
           test "$status" = 403
           docker exec ${{ job.services.postgres.id }} psql -U alveo -d alveo \
             -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM users;'
+      - name: Verify deployment controller is bound to the tested image
+        run: |
+          docker cp alveo-smoke:/opt/alveo-release /tmp/alveo-verified-release
+          for file in scripts/release-vps.mjs deploy/vps/compose.yaml deploy/vps/release.compose.yaml deploy/rollback-policy.json; do
+            cmp "$file" "/tmp/alveo-verified-release/$file"
+          done
       - name: Verify private deployment fixture is idempotent
         run: |
           docker exec -i alveo-smoke node --input-type=module - < scripts/provision-release-smoke.mjs > /tmp/smoke-ids-first.json

@@ -8,7 +8,9 @@ The job also supports rerunning current main through workflow_dispatch.
 
 The VPS receiver pulls with a short-lived GitHub job token, compares the image's
 commit label, checks migrations from the actual previous and candidate images,
-then runs the existing app-only health/rollback controller. Registry credentials
+compares every transferred control file byte-for-byte with the copy inside that
+published image, then runs the existing app-only health/rollback controller.
+A deployment SSH key alone cannot substitute arbitrary root control scripts. Registry credentials
 and incoming files are removed afterward. Database/session secrets remain on the
 VPS. LiveKit, Redis and Caddy are not restarted.
 

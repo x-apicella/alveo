@@ -48,6 +48,10 @@ docker pull "$image" >/dev/null
 current=$(docker compose -f deploy/vps/compose.yaml ps -q app)
 [[ $current =~ ^[a-f0-9]{12,64}$ ]] || { echo 'Expected one existing app container.' >&2; exit 1; }
 candidate=$(docker create "$image")
+docker cp "$candidate:/opt/alveo-release" "$incoming/verified"
+for file in scripts/release-vps.mjs deploy/vps/compose.yaml deploy/vps/release.compose.yaml deploy/rollback-policy.json; do
+  cmp -- "$incoming/$file" "$incoming/verified/$file" || { echo 'Bundle does not match the published image.' >&2; exit 1; }
+done
 docker cp "$current:/app/drizzle" "$incoming/previous-schema"
 docker cp "$candidate:/app/drizzle" "$incoming/candidate-schema"
 # Metadata is copied from the actual images, never inferred from GitHub history.
@@ -71,6 +75,7 @@ PY
 ln -s /opt/alveo/.deploy "$incoming/.deploy"
 node "$incoming/scripts/release-vps.mjs" "$image" "$revision" --schema-compatible
 # Retain the exact control files for subsequent manual rollback/deployment.
+install -m 600 "$incoming/deploy/vps/compose.yaml" /opt/alveo/deploy/vps/compose.yaml
 install -m 600 "$incoming/deploy/vps/release.compose.yaml" /opt/alveo/deploy/vps/release.compose.yaml
 install -m 600 "$incoming/scripts/release-vps.mjs" /opt/alveo/scripts/release-vps.mjs
 echo "Verified deployed commit: $revision"
