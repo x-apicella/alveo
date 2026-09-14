@@ -1,0 +1,8 @@
+:root { color-scheme: dark; font: 16px system-ui, sans-serif; background: #17191d; color: #f5f5f5; }
+body { margin: 24px; }
+h1 { font-size: 24px; }
+button { background: #262a32; color: inherit; border: 1px solid #626976; border-radius: 8px; padding: 12px; cursor: pointer; }
+button:focus-visible { outline: 3px solid #ffc852; outline-offset: 3px; }
+#sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+#sources button { display: flex; flex-direction: column; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+img { width: 100%; aspect-ratio: 12/7; object-fit: contain; }
