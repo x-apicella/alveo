@@ -15,6 +15,9 @@ let delayPublish = false;
 let delayPicker = false;
 let cancelled = false;
 let noAudio = false;
+let rejectMotion = false;
+let delayConstraints = false;
+let finishConstraints;
 const context = new AudioContext();
 const oscillator = context.createOscillator();
 const destination = context.createMediaStreamDestination();
@@ -29,6 +32,13 @@ Object.defineProperty(navigator, 'mediaDevices', { value: {
   async getDisplayMedia(options) {
     if (cancelled) throw new DOMException('Cancelled', 'NotAllowedError');
     const stream = new MediaStream([video.clone(), ...(options.audio && !noAudio ? [destination.stream.getAudioTracks()[0].clone()] : [])]);
+    const track = stream.getVideoTracks()[0];
+    const apply = track.applyConstraints.bind(track);
+    track.applyConstraints = async constraints => {
+      if (delayConstraints) await new Promise(resolve => { finishConstraints = resolve; });
+      if (rejectMotion && constraints.height.max === 1080) throw new DOMException('unsupported', 'OverconstrainedError');
+      return apply(constraints);
+    };
     streams.push(stream);
     if (delayPicker) await new Promise(resolve => { picker = resolve; });
     return stream;
@@ -50,9 +60,12 @@ window.fixture = {
     delayPicker = options.delayPicker ?? false;
     cancelled = options.cancelled ?? false;
     noAudio = options.noAudio ?? false;
+    rejectMotion = options.rejectMotion ?? false;
+    delayConstraints = options.delayConstraints ?? false;
   },
   resolvePublish() { delayPublish = false; pending?.(); },
   resolvePicker() { picker?.(); },
+  resolveConstraints() { delayConstraints = false; finishConstraints?.(); },
   state(value) {
     room.state = value;
     room.emit(RoomEvent.ConnectionStateChanged, value);
@@ -62,6 +75,7 @@ window.fixture = {
   unmount() { root.unmount(); },
   snapshot() { return {
     publications: [...publications.values()].map(pub => JSON.parse(pub.options.name)),
+    encodings: [...publications.values()].filter(pub => pub.track.kind === 'video').map(pub => ({ codec: pub.options.videoCodec, ...pub.options.screenShareEncoding })),
     liveTracks: streams.flatMap(stream => stream.getTracks()).filter(track => track.readyState === 'live').length,
     captures: streams.length,
   }; },

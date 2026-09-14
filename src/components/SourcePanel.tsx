@@ -5,6 +5,7 @@ import { useConnectionState, useLocalParticipant, useRoomContext } from "@liveki
 import { ConnectionState, RoomEvent, Track, type LocalTrackPublication } from "livekit-client";
 import { createShareLifecycle } from "@/lib/share-lifecycle";
 import { shareTrackName } from "@/lib/source-viewing";
+import { configureShareVideo, STREAM_PRESETS, type StreamQuality } from "@/lib/stream-quality";
 
 type ShareMode = "video+audio" | "video" | "audio";
 
@@ -13,6 +14,7 @@ interface Source {
   label: string;
   mode: ShareMode;
   state: "publishing" | "live";
+  detail?: string;
   lifecycle: ReturnType<typeof createShareLifecycle<LocalTrackPublication>>;
 }
 
@@ -31,6 +33,7 @@ export function SourcePanel() {
   const busy = useRef(false);
   const [adding, setAdding] = useState(false);
   const generation = useRef(0);
+  const [quality, setQuality] = useState<StreamQuality>("balanced");
 
   const stopSource = useCallback(
     async (source: Source) => {
@@ -65,7 +68,7 @@ export function SourcePanel() {
     try {
       // Browsers require video in the request even when only audio is wanted.
       stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: 30 },
+        video: { frameRate: STREAM_PRESETS[quality].fps },
         audio:
           mode === "video"
             ? false
@@ -130,11 +133,18 @@ export function SourcePanel() {
         return;
       }
       if (mode !== "audio" && videoTrack) {
+        const configured = await configureShareVideo(videoTrack, quality);
+        if (!isCurrent() || lifecycle.closed) { await stopSource(source); return; }
+        const { width, height, frameRate } = configured.settings;
+        source.detail = `${width ?? "?"}×${height ?? "?"} · ${frameRate ? Math.round(frameRate) : "?"} fps · ${STREAM_PRESETS[configured.quality].bitrate / 1_000_000} Mb/s main layer cap${configured.quality !== quality ? " · reduced quality" : ""}`;
         await lifecycle.add(
           await localParticipant.publishTrack(videoTrack, {
             name: shareTrackName(id, label, "video", mode),
             source: Track.Source.ScreenShare,
             simulcast: true,
+            videoCodec: "vp8",
+            screenShareEncoding: configured.encoding,
+            degradationPreference: "balanced",
           }),
         );
       }
@@ -197,6 +207,7 @@ export function SourcePanel() {
             {s.mode === "audio" ? "🎵" : s.mode === "video" ? "🖥️" : "🖥️🎵"}{" "}
             {s.label.length > 24 ? s.label.slice(0, 22) + "…" : s.label}
             {s.state === "publishing" ? " · Publishing…" : " · Live"}
+            {s.detail && <span className="block text-xs opacity-70">{s.detail}</span>}
           </span>
           <button type="button" disabled={adding || s.state !== "live" || connection !== ConnectionState.Connected}
             className="ml-1 disabled:opacity-40" aria-label={`Replace ${s.label}`}
@@ -213,6 +224,10 @@ export function SourcePanel() {
         </span>
       ))}
       <AddMenu onPick={addSource} disabled={adding || sources.length >= MAX_SOURCES || connection !== ConnectionState.Connected} adding={adding} />
+      <label className="text-xs">Share quality <select className="rounded bg-panel-2 p-1" aria-label="Share quality" value={quality} disabled={adding}
+        onChange={event => setQuality(event.target.value as StreamQuality)}>
+        {Object.entries(STREAM_PRESETS).map(([id, preset]) => <option key={id} value={id}>{preset.label}</option>)}
+      </select></label>
       <span className="text-xs opacity-70">{sources.length}/{MAX_SOURCES} sources · Audio depends on browser/picker support</span>
       {connection !== ConnectionState.Connected && <span role="status">Sharing unavailable while {connection}</span>}
       {error && <span role="alert" className="max-w-xs text-xs text-red-400">{error}</span>}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AudioTrack, StartAudio, VideoTrack, useConnectionState, useTracks, type TrackReference } from "@livekit/components-react";
 import { RemoteTrackPublication, RoomEvent, Track } from "livekit-client";
 import { defaultPreference, groupSources, wantsTrack, type ViewerPreference } from "@/lib/source-viewing";
+import { StreamDiagnostics } from "./StreamDiagnostics";
 
 type Source = ReturnType<typeof groupSources<TrackReference>>[number];
 
@@ -27,6 +28,7 @@ export function SourceViewer({ deafened = false }: { deafened?: boolean }) {
         </div>
         <StartAudio label="Enable audio playback" />
       </div>
+      <StreamDiagnostics tracks={tracks} />
       {sources.length === 0 && <p className="text-muted">No sources yet. Turn on your microphone or share a source.</p>}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {sources.map(source => (
