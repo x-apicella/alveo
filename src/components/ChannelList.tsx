@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Channel, Server } from "@/db/schema";
+import { InviteManager } from "./InviteManager";
 
-export function ChannelList({ server, channels }: { server: Server; channels: Channel[] }) {
+export function ChannelList({ server, channels, isOwner }: { server: Server; channels: Channel[]; isOwner: boolean }) {
   const { channelId } = useParams<{ channelId?: string }>();
   const router = useRouter();
   const [adding, setAdding] = useState<"text" | "voice" | null>(null);
   const [name, setName] = useState("");
-  const [copied, setCopied] = useState(false);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -26,12 +26,6 @@ export function ChannelList({ server, channels }: { server: Server; channels: Ch
       router.push(`/s/${server.id}/c/${channel.id}`);
       router.refresh();
     }
-  }
-
-  async function copyInvite() {
-    await navigator.clipboard.writeText(`${window.location.origin}/invite/${server.inviteCode}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
   }
 
   const group = (kind: Channel["kind"], label: string) => (
@@ -77,13 +71,7 @@ export function ChannelList({ server, channels }: { server: Server; channels: Ch
     <div className="flex flex-1 flex-col overflow-y-auto px-2">
       {group("text", "Text channels")}
       {group("voice", "Voice channels")}
-      <button
-        type="button"
-        onClick={copyInvite}
-        className="mt-4 rounded-md bg-panel-2 px-2 py-1 text-xs hover:bg-white/10"
-      >
-        {copied ? "Copied!" : "Copy invite link"}
-      </button>
+      {isOwner && <InviteManager key={server.id} serverId={server.id} />}
       <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="my-3 px-2 text-xs underline opacity-70">Privacy policy</Link>
     </div>
   );

@@ -56,31 +56,45 @@ export async function listChannels(serverId: string): Promise<Channel[]> {
 }
 
 export async function createServer(name: string, ownerId: string): Promise<Server> {
-  const inviteCode = crypto.randomUUID().replaceAll("-", "").slice(0, 10);
-  const [server] = await db
-    .insert(schema.servers)
-    .values({ name, ownerId, inviteCode })
-    .returning();
-  await db.insert(schema.memberships).values({ serverId: server.id, userId: ownerId });
-  await db.insert(schema.channels).values([
-    { serverId: server.id, name: "general", kind: "text" },
-    { serverId: server.id, name: "Table", kind: "voice" },
-  ]);
-  return server;
+  return db.transaction(async (tx) => {
+    const inviteCode = crypto.randomUUID().replaceAll("-", "");
+    const [server] = await tx
+      .insert(schema.servers)
+      .values({ name, ownerId, inviteCode })
+      .returning();
+    await tx.insert(schema.memberships).values({ serverId: server.id, userId: ownerId });
+    await tx.insert(schema.channels).values([
+      { serverId: server.id, name: "general", kind: "text" },
+      { serverId: server.id, name: "Table", kind: "voice" },
+    ]);
+    await tx.insert(schema.invites).values({ serverId: server.id, code: inviteCode,
+      expiresAt: sql`clock_timestamp() + interval '7 days'`, maxUses: 25 });
+    return server;
+  });
 }
 
 export async function joinByInvite(code: string, userId: string): Promise<Server> {
-  const [server] = await db
-    .select()
-    .from(schema.servers)
-    .where(eq(schema.servers.inviteCode, code))
-    .limit(1);
-  if (!server) throw new HttpError(404, "Invite not found");
-  await db
-    .insert(schema.memberships)
-    .values({ serverId: server.id, userId })
-    .onConflictDoNothing();
-  return server;
+  return db.transaction(async (tx) => {
+    // Serialize redemption and revocation across application instances.
+    const [invite] = await tx.select().from(schema.invites)
+      .where(eq(schema.invites.code, code)).for("update");
+    if (!invite) throw new HttpError(404, "Invite is invalid or no longer available");
+    const [valid] = await tx.select({ id: schema.invites.id }).from(schema.invites).where(and(
+      eq(schema.invites.id, invite.id),
+      sql`${schema.invites.revokedAt} IS NULL AND ${schema.invites.expiresAt} > clock_timestamp()`,
+    ));
+    if (!valid) throw new HttpError(404, "Invite is invalid or no longer available");
+    const joined = await tx.insert(schema.memberships)
+      .values({ serverId: invite.serverId, userId }).onConflictDoNothing().returning();
+    if (joined.length) {
+      if (invite.maxUses !== null && invite.uses >= invite.maxUses) {
+        throw new HttpError(404, "Invite is invalid or no longer available");
+      }
+      await tx.update(schema.invites).set({ uses: invite.uses + 1 }).where(eq(schema.invites.id, invite.id));
+    }
+    const [server] = await tx.select().from(schema.servers).where(eq(schema.servers.id, invite.serverId));
+    return server;
+  });
 }
 
 export interface MessageView {

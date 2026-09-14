@@ -109,6 +109,9 @@ jobs:
       - run: node scripts/chat-recovery-smoke.mjs
         env:
           SMOKE_EVENTS_URL: http://localhost:3001
+      - run: node scripts/invite-smoke.mjs
+        env:
+          SMOKE_EVENTS_URL: http://localhost:3001
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:browser
       - name: Container logs

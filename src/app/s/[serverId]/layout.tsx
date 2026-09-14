@@ -20,7 +20,7 @@ export default async function ServerLayout({ children, params }: LayoutProps<"/s
       <aside className="channel-sidebar">
         <div className="server-heading"><span className="truncate">{server.name}</span><span aria-hidden="true" className="text-accent">⌄</span></div>
         <div className="server-banner honeycomb"><span className="eyebrow">Join the Hive</span></div>
-        <ChannelList server={server} channels={channels} />
+        <ChannelList server={server} channels={channels} isOwner={server.ownerId === user.id} />
         <div className="user-panel"><span className="avatar">{user.username.slice(0, 2).toUpperCase()}</span><div className="min-w-0"><div className="user-name">{user.username}</div><div className="user-caption">Your personal space</div></div></div>
       </aside>
       <section className="flex min-w-0 flex-1 flex-col">{children}</section>
