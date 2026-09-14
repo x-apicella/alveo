@@ -7,6 +7,7 @@ import { shareTrackName } from '../../src/lib/source-viewing';
 
 let tracks = [];
 let revision = 0;
+const root = createRoot(document.getElementById('root'));
 const room = new Room();
 const remote = new RemoteParticipant(undefined, 'remote-sid', 'remote', 'Friend');
 room.remoteParticipants.set('remote', remote);
@@ -24,6 +25,7 @@ const videoStream = canvas.captureStream(1);
 // Inject synthetic media into real SDK publications. Signaling/network is the
 // only missing layer; useTracks, track attachment and volume are production code.
 window.fixture = {
+  deafen(value) { root.render(<RoomContext.Provider value={room}><SourceViewer deafened={value} /></RoomContext.Provider>); },
   publish() {
     revision++;
     tracks = [];
@@ -53,4 +55,4 @@ window.fixture = {
   },
   desired() { return Object.fromEntries(tracks.map(ref => [ref.publication.trackSid, ref.publication.isDesired])); },
 };
-createRoot(document.getElementById('root')).render(<RoomContext.Provider value={room}><SourceViewer /></RoomContext.Provider>);
+root.render(<RoomContext.Provider value={room}><SourceViewer /></RoomContext.Provider>);

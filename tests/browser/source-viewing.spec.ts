@@ -29,6 +29,10 @@ test('source selection, independent mixing and reconnect preferences', async ({ 
   )).toBe(3);
   await music.getByRole('slider').fill('35');
   await expect(music.locator('audio')).toHaveJSProperty('volume', 0.35);
+  await page.evaluate('window.fixture.deafen(true)');
+  await expect(page.locator('audio')).toHaveCount(0);
+  await page.evaluate('window.fixture.deafen(false)');
+  await expect(music.locator('audio')).toHaveJSProperty('volume', 0.35);
   await game.getByRole('button', { name: 'Mute', exact: true }).click();
   await expect(game.locator('audio')).toHaveCount(0);
   await expect(game.locator('video')).toHaveCount(1);
