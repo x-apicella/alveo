@@ -60,7 +60,7 @@ try {
   const fixtures = Array.from({ length: 451 }, (_, i) => ({ channel_id: channel.id, author_id: user.id,
     content: `collision-${i}`, created_at: '2026-01-01T00:00:00.123456Z' }));
   await sql`INSERT INTO messages ${sql(fixtures)}`;
-  const expected = await sql`SELECT id, sequence::text FROM messages WHERE channel_id = ${channel.id} ORDER BY sequence`;
+  const expected = await sql`SELECT id, sequence::text FROM messages WHERE channel_id = ${channel.id} ORDER BY messages.sequence`;
   let cursor = '0';
   const forward = [];
   let more = true;
