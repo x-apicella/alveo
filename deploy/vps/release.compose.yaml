@@ -1,0 +1,5 @@
+# Overlay for app-only releases. Never use this file with `down`.
+services:
+  app:
+    image: ${ALVEO_RELEASE_IMAGE:?An immutable image digest is required}
+    pull_policy: never

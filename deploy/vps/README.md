@@ -166,8 +166,9 @@ them. Universal per-application audio capture still requires the desktop work.
 
 ## Updates, recovery, and growth
 
-For updates, package a clean committed checkout with the same `.deploy/` credentials,
-transfer it over SSH, extract it in `/opt/alveo`, and run `up -d --build` again.
+For ordinary app updates, use the [verified image release and rollback procedure](RELEASES.md).
+It serializes releases, preserves the existing private configuration and replaces
+only the app container. The archive procedure above is for initial bootstrap.
 Schedule media server updates when rooms are empty: forced restarts disconnect users.
 Keep a previous private release archive; restoring its files and rebuilding rolls
 back application code. Database migrations may need a separate recovery plan.
