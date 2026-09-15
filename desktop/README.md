@@ -64,3 +64,8 @@ blocked. The shell never disables TLS validation or sandboxing.
 
 References: [Electron security](https://www.electronjs.org/docs/latest/tutorial/security),
 [session permissions and display capture](https://www.electronjs.org/docs/latest/api/session).
+
+## Installer releases and update prompts
+
+See [production desktop releases](RELEASING.md) for packaging, update prompts and
+the successful-VPS-deployment release gate. Source-run previews do not auto-update.

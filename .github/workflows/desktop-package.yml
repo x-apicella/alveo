@@ -1,0 +1,52 @@
+name: Package desktop
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci
+        working-directory: desktop
+      - name: Assign production build version
+        shell: bash
+        working-directory: desktop
+        run: npm version "0.1.$GITHUB_RUN_NUMBER" --no-git-tag-version
+      - name: Build installer and update metadata
+        working-directory: desktop
+        run: npm run dist -- --x64
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Launch packaged client and verify update prompt
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node --test tests/desktop/packaged.test.mjs
+        env:
+          TEST_PACKAGED_DESKTOP: '1'
+      - name: Launch packaged client and verify update prompt
+        if: runner.os == 'Windows'
+        run: node --test tests/desktop/packaged.test.mjs
+        env:
+          TEST_PACKAGED_DESKTOP: '1'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ runner.os }}
+          if-no-files-found: error
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.AppImage
+            desktop/dist/*.blockmap
+            desktop/dist/latest*.yml

@@ -1,10 +1,14 @@
 import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, session, shell, Tray } from 'electron';
+import { join } from 'node:path';
+import { createDesktopUpdates } from './updates.mjs';
 import { fileURLToPath } from 'node:url';
 import { appOrigin, captureAllowed, sameOrigin, trustedFrame } from './policy.mjs';
 
 app.enableSandbox();
 const origin = appOrigin(process.env.ALVEO_DESKTOP_TEST_ORIGIN, app.isPackaged);
 const asset = name => fileURLToPath(new URL(name, import.meta.url));
+const iconPath = () => app.isPackaged ? join(process.resourcesPath, 'alveo-logo.png') : asset('../public/alveo-logo.png');
+let updates;
 let main;
 let tray;
 let picker;
@@ -61,7 +65,11 @@ ipcMain.handle('alveo:capture:cancel', event => {
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { main?.show(); main?.focus(); });
-  app.on('before-quit', () => { quitting = true; cancelCapture(); });
+  app.on('before-quit', () => {
+    quitting = true; cancelCapture();
+    if (main && !main.isDestroyed()) main.destroy();
+    tray?.destroy();
+  });
   app.on('window-all-closed', () => { if (quitting) app.quit(); });
   app.whenReady().then(async () => {
     // In-memory cookies avoid persisting desktop credentials before #31 supplies
@@ -120,7 +128,7 @@ else {
     });
 
     main = new BrowserWindow({ width: 1280, height: 850, minWidth: 800, minHeight: 600, title: 'Alveo',
-      icon: asset('../public/alveo-logo.png'),
+      icon: iconPath(),
       webPreferences: { session: partition, sandbox: true, contextIsolation: true, nodeIntegration: false,
         webviewTag: false, backgroundThrottling: false } });
     main.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -134,17 +142,33 @@ else {
     });
     main.webContents.on('render-process-gone', cancelCapture);
     main.on('close', event => { if (!quitting) { event.preventDefault(); main.hide(); } });
-    tray = new Tray(nativeImage.createFromPath(asset('../public/alveo-logo.png')).resize({ width: 24, height: 24 }));
+    tray = new Tray(nativeImage.createFromPath(iconPath()).resize({ width: 24, height: 24 }));
     tray.setToolTip('Alveo — calls continue while the window is hidden');
     const commands = [
       { label: 'Show Alveo', click: () => { main.show(); main.focus(); } },
       { label: 'Open Alveo in browser', click: () => { void shell.openExternal('https://alveo.chat/login'); } },
+      { label: 'Check for updates', click: () => {
+        if (updates) void updates.check(true);
+        else void dialog.showMessageBox(main, { message: 'Install a packaged Alveo release to receive desktop updates.' });
+      } },
       { label: 'Stop all capture and reload', click: () => { cancelCapture(); main.webContents.reload(); } },
       { type: 'separator' }, { label: 'Quit and stop all capture', click: quit },
     ];
     tray.setContextMenu(Menu.buildFromTemplate(commands));
     tray.on('double-click', () => { main.show(); main.focus(); });
     Menu.setApplicationMenu(Menu.buildFromTemplate([{ label: 'Alveo', submenu: commands }, { role: 'editMenu' }]));
+    if (app.isPackaged && ['win32', 'linux'].includes(process.platform)) {
+      const { default: electronUpdater } = await import('electron-updater');
+      updates = createDesktopUpdates({
+        updater: electronUpdater.autoUpdater,
+        prompt: options => dialog.showMessageBox(main, options),
+        prepareInstall: () => { quitting = true; cancelCapture(); },
+      });
+      void updates.check();
+      const updateTimer = setInterval(() => { void updates.check(); }, 30 * 60 * 1000);
+      updateTimer.unref();
+      app.once('before-quit', () => clearInterval(updateTimer));
+    }
     await main.loadURL(origin);
-  }).catch(() => { dialog.showErrorBox('Alveo could not start', 'Check your connection and restart Alveo.'); quit(); });
+  }).catch(() => { if (quitting) return; dialog.showErrorBox('Alveo could not start', 'Check your connection and restart Alveo.'); quit(); });
 }

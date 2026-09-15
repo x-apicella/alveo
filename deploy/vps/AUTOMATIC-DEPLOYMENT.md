@@ -98,11 +98,13 @@ unblock a run. Image rollback never reverses database migrations.
 
 ## Electron
 
-The desktop shell loads https://alveo.chat, so deployed web UI changes appear
-there too (reload an already-open window). Shell/native-capture changes require a
-new desktop binary. Desktop CI currently tests Windows and Linux but does not
-publish installers or update feeds. Signed installers/updates (#24), browser login
-handoff (#31), and application audio capture (#11–#13) remain separate work.
+CI builds Windows and Linux installers before deploying, then publishes the
+matching desktop release only after a successful VPS deployment and public health
+check. Packaged clients offer to download the update, then ask before restarting.
+The hosted UI also refreshes on reload. See [desktop releases](../../desktop/RELEASING.md)
+for installation, versioning and verification details. Initial installers are
+unsigned previews; publisher signing (#24), browser login handoff (#31), and
+application audio capture (#11–#13) remain separate work.
 
 ## Verification limits
 

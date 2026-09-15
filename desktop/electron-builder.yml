@@ -1,0 +1,25 @@
+appId: chat.alveo.desktop
+productName: Alveo
+directories:
+  output: dist
+files:
+  - "*.mjs"
+  - "picker*"
+  - "package.json"
+extraResources:
+  - from: ../public/alveo-logo.png
+    to: alveo-logo.png
+publish:
+  provider: github
+  owner: x-apicella
+  repo: alveo
+  releaseType: release
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+linux:
+  target: AppImage
+  category: Network

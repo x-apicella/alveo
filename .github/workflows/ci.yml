@@ -7,6 +7,9 @@ on:
 permissions:
   contents: read
 jobs:
+  desktop-build:
+    uses: ./.github/workflows/desktop-package.yml
+
   verify:
     runs-on: ubuntu-latest
     permissions:
@@ -154,7 +157,9 @@ jobs:
           docker logs alveo-smoke-secondary 2>&1 || true
 
   deploy:
-    needs: verify
+    needs: [verify, desktop-build]
+    outputs:
+      deployed: ${{ steps.completed.outputs.deployed }}
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -194,7 +199,53 @@ jobs:
           RELEASE_REVISION: ${{ github.sha }}
         run: bash scripts/deploy-via-ssh.sh
       - name: Check public availability
+        id: completed
         if: steps.current.outputs.deploy == 'true'
         run: |
           curl --fail --silent --show-error --retry 3 --max-time 15 https://alveo.chat/api/health
           printf 'Deployed commit: %s\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "deployed=true" >> "$GITHUB_OUTPUT"
+
+  desktop-release:
+    needs: [deploy, desktop-build]
+    if: needs.deploy.outputs.deployed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: alveo-desktop-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          merge-multiple: true
+          path: installers
+      - name: Publish installers only for a deployed production commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+          if [[ "$current" != "$GITHUB_SHA" ]]; then
+            echo "A newer main commit supersedes this desktop release." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          test -f installers/latest.yml
+          test -f installers/latest-linux.yml
+          compgen -G 'installers/*.exe' >/dev/null
+          compgen -G 'installers/*.AppImage' >/dev/null
+          tag="v0.1.$GITHUB_RUN_NUMBER"
+          if gh release view "$tag" --json isDraft --jq .isDraft > /tmp/alveo-release-state; then
+            if [[ "$(cat /tmp/alveo-release-state)" == false ]]; then
+              echo "This production run already has a published desktop release." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          else
+            gh release create "$tag" --target "$GITHUB_SHA" --draft --title "Alveo $tag" --notes "Desktop client for successfully deployed production commit $GITHUB_SHA. Windows NSIS and Linux AppImage (x64). These preview installers are unsigned."
+          fi
+          gh release upload "$tag" installers/* --clobber
+          gh release edit "$tag" --draft=false --latest
+          echo "Published Alveo $tag after successful VPS deployment." >> "$GITHUB_STEP_SUMMARY"
