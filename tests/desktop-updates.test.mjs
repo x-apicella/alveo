@@ -66,3 +66,16 @@ test('an in-flight download prevents another check', async () => {
   await f.controller.check(true); await tick();
   assert.equal(f.calls.filter(x => x === 'check').length, 2);
 });
+
+test('a download requested from a background offer reports failure and allows retry', async () => {
+  const f = fixture([1, 0, 0]);
+  f.updater.downloadUpdate = async () => {
+    f.updater.emit('error', new Error('private transport details'));
+    throw new Error('private transport details');
+  };
+  await f.controller.check(); await tick();
+  assert.match(f.messages[1].message, /Could not check or download/);
+  await f.controller.check(true); await tick();
+  assert.equal(f.messages.length, 3);
+  assert.doesNotMatch(JSON.stringify(f.messages), /private transport/);
+});

@@ -42,6 +42,7 @@ export function createDesktopUpdates({ updater, prompt, prepareInstall }) {
       }));
     } finally { showing = false; }
     if (response !== 1) return;
+    manual = true; // Download is now a user-requested operation, even after a background check.
     downloading = true;
     try { await updater.downloadUpdate(); }
     finally { downloading = false; }
@@ -49,9 +50,12 @@ export function createDesktopUpdates({ updater, prompt, prepareInstall }) {
 
   async function failed() {
     if (!manual || showing) return;
-    await prompt({ type: 'info', title: 'Alveo updates',
-      message: 'Could not check or download the update. Try again from the Alveo menu.',
-      buttons: ['OK'] });
+    showing = true;
+    try {
+      await prompt({ type: 'info', title: 'Alveo updates',
+        message: 'Could not check or download the update. Try again from the Alveo menu.',
+        buttons: ['OK'] });
+    } finally { showing = false; }
   }
   updater.on('error', () => { void failed().catch(() => {}); });
   updater.on('update-available', info => { void available(info).catch(() => {}); });
