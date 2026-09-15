@@ -50,3 +50,7 @@ livekit.prod.yaml
 
 # Private VPS deployment bundle
 /.deploy/
+
+# Desktop packaging
+desktop/dist/
+desktop/node_modules/
