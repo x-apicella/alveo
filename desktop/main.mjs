@@ -170,5 +170,5 @@ else {
       app.once('before-quit', () => clearInterval(updateTimer));
     }
     await main.loadURL(origin);
-  }).catch(() => { dialog.showErrorBox('Alveo could not start', 'Check your connection and restart Alveo.'); quit(); });
+  }).catch(() => { if (quitting) return; dialog.showErrorBox('Alveo could not start', 'Check your connection and restart Alveo.'); quit(); });
 }

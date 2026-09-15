@@ -15,8 +15,8 @@ test('packaged client loads its updater and presents a native update offer', {
   try {
     client = await _electron.launch({ executablePath, args: ['--user-data-dir=' + profile] });
     const result = await client.evaluate(async ({ app, dialog }) => {
-      const { createRequire } = await import('node:module');
-      const { readFileSync } = await import('node:fs');
+      const { createRequire } = process.getBuiltinModule('module');
+      const { readFileSync } = process.getBuiltinModule('fs');
       const requireApp = createRequire(app.getAppPath() + '/package.json');
       const { autoUpdater } = requireApp('electron-updater');
       for (let attempt = 0; attempt < 200 && autoUpdater.listenerCount('update-available') === 0; attempt++) {
@@ -45,7 +45,14 @@ test('packaged client loads its updater and presents a native update offer', {
     assert.match(result.feed, /owner: x-apicella/);
     assert.match(result.feed, /repo: alveo/);
   } finally {
-    await client?.close();
+    if (client) {
+      const closed = client.waitForEvent('close');
+      await client.evaluate(({ Menu }) => {
+        Menu.getApplicationMenu().items[0].submenu.items
+          .find(item => item.label === 'Quit and stop all capture').click();
+      }).catch(() => {});
+      await closed;
+    }
     await rm(profile, { recursive: true, force: true });
   }
 });
